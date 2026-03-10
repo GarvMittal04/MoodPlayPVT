@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MoodPlay</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <canvas id="particleCanvas"></canvas>
+
+  <!-- PAGE 1 · LANDING -->
+  <section id="page-landing" class="page active">
+    <div class="landing-card">
+      <div class="landing-icon">🎮</div>
+      <h1 class="brand">MoodPlay</h1>
+      <p class="tagline">Choose your mood and relax<br>with games &amp; music.</p>
+      <button id="btn-start" class="cta-btn">Let's Play <span>→</span></button>
+    </div>
+  </section>
+
+  <!-- PAGE 2 · MOOD SELECTION -->
+  <section id="page-mood" class="page">
+    <div class="page-inner">
+      <button id="btn-back-landing" class="back-btn">← Back</button>
+      <div class="page-heading">
+        <h2>How are you <em>feeling?</em></h2>
+        <p>Pick a mood to unlock your personalised experience</p>
+      </div>
+      <div class="mood-grid">
+        <button class="mood-pill" data-mood="happy">
+          <span class="pill-emoji">😄</span>
+          <span class="pill-name">Happy</span>
+          <span class="pill-hint">Boost the joy</span>
+        </button>
+        <button class="mood-pill" data-mood="sad">
+          <span class="pill-emoji">😢</span>
+          <span class="pill-name">Sad</span>
+          <span class="pill-hint">Gentle comfort</span>
+        </button>
+        <button class="mood-pill" data-mood="stressed">
+          <span class="pill-emoji">😰</span>
+          <span class="pill-name">Stressed</span>
+          <span class="pill-hint">Find your calm</span>
+        </button>
+        <button class="mood-pill" data-mood="bored">
+          <span class="pill-emoji">😑</span>
+          <span class="pill-name">Bored</span>
+          <span class="pill-hint">Spark it up</span>
+        </button>
+        <button class="mood-pill" data-mood="tired">
+          <span class="pill-emoji">😴</span>
+          <span class="pill-name">Tired</span>
+          <span class="pill-hint">Ease into rest</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- PAGE 3 · GAMES + MUSIC -->
+  <section id="page-games" class="page">
+    <div class="page-inner games-inner">
+      <header class="games-topbar">
+        <button id="btn-back-mood" class="back-btn">← Back</button>
+        <div id="mood-chip" class="mood-chip"></div>
+      </header>
+      <div class="card music-card">
+        <div class="card-label">🎵 Music for your mood</div>
+        <div class="yt-shell">
+          <iframe id="yt-player" src="" title="Mood music" frameborder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowfullscreen></iframe>
+        </div>
+      </div>
+      <div class="card games-card">
+        <div class="card-label">🕹️ Games for you</div>
+        <div class="tab-row">
+          <button id="tab-btn-1" class="tab-btn active">Game 1</button>
+          <button id="tab-btn-2" class="tab-btn">Game 2</button>
+        </div>
+        <div id="game-area" class="game-area"></div>
+      </div>
+    </div>
+  </section>
+
+  <script src="script.js"></script>
+</body>
+</html>
