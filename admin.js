@@ -4,22 +4,43 @@
    ======================================== */
 
 // ============================================================
-//  CONFIG  —  change these credentials!
+//  FIREBASE — CDN ES MODULE IMPORTS
+// ============================================================
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
+import { getDatabase, ref, get }
+  from "https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey:            "AIzaSyCq8TnGxdBiQtxi2lIwoe2v1YD8BTKcC_k",
+  authDomain:        "mood-play-0410.firebaseapp.com",
+  databaseURL:       "https://mood-play-0410-default-rtdb.firebaseio.com",
+  projectId:         "mood-play-0410",
+  storageBucket:     "mood-play-0410.firebasestorage.app",
+  messagingSenderId: "210625409421",
+  appId:             "1:210625409421:web:b71677114806316df50dc4",
+  measurementId:     "G-4N5BFYFZB6",
+};
+
+const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+const db  = getDatabase(app);
+
+// ============================================================
+//  CONFIG  —  change these credentials in production!
 // ============================================================
 const ADMIN_CREDS = {
   admin: 'admin@GM',
-  // Add more admins here: username: 'password'
+  // Add more admins: username: 'password'
 };
 
 // ============================================================
 //  CONSTANTS
 // ============================================================
 const MOOD_META = {
-  happy:   { emoji: '😄', color: '#f7c948' },
-  sad:     { emoji: '😢', color: '#64b5f6' },
-  stressed:{ emoji: '😰', color: '#81c784' },
-  bored:   { emoji: '😑', color: '#ff8a65' },
-  tired:   { emoji: '😴', color: '#ce93d8' },
+  happy:    { emoji: '😄', color: '#f7c948' },
+  sad:      { emoji: '😢', color: '#64b5f6' },
+  stressed: { emoji: '😰', color: '#81c784' },
+  bored:    { emoji: '😑', color: '#ff8a65' },
+  tired:    { emoji: '😴', color: '#ce93d8' },
 };
 
 const PALETTE = [
@@ -59,38 +80,33 @@ let refreshTimer = null;
 
 function startAutoRefresh() {
   if (refreshTimer) clearInterval(refreshTimer);
-  refreshTimer = setInterval(loadData, 8000); // every 8 seconds
+  refreshTimer = setInterval(loadData, 8000);
 }
 
 // ============================================================
 //  MAIN DATA LOADER
+//  Reads three Firebase paths in parallel:
+//    /users/reg    → user registry object
+//    /feed/events  → global event array
+//    /active       → object of currently-online users
 // ============================================================
 async function loadData() {
   try {
-    // Load all shared backend data in parallel
-    const [regRes, feedRes, activeKeysRes] = await Promise.all([
-      safeGet('users:reg',   true),
-      safeGet('feed:events', true),
-      window.storage.list('active:', true).catch(() => ({ keys: [] })),
+    const [regSnap, feedSnap, activeSnap] = await Promise.all([
+      safeGet('users/reg'),
+      safeGet('feed/events'),
+      safeGet('active'),
     ]);
 
-    const reg        = regRes  ? JSON.parse(regRes.value)  : {};
-    const feed       = feedRes ? JSON.parse(feedRes.value) : [];
-    const activeKeys = activeKeysRes?.keys || [];
+    const reg  = regSnap?.exists()  ? regSnap.val()  : {};
 
-    // Fetch each online user's active mood event
-    const activeUsers = {};
-    for (const key of activeKeys) {
-      try {
-        const r = await window.storage.get(key, true);
-        if (r) {
-          const data = JSON.parse(r.value);
-          activeUsers[data.user] = data;
-        }
-      } catch (_) {}
-    }
+    // Firebase may return an object instead of an array if keys were set
+    const feedRaw = feedSnap?.exists() ? feedSnap.val() : [];
+    const feed    = Array.isArray(feedRaw) ? feedRaw : Object.values(feedRaw);
 
-    // Render all dashboard sections
+    // /active is an object keyed by username
+    const activeUsers = activeSnap?.exists() ? activeSnap.val() : {};
+
     renderStats(reg, feed, activeUsers);
     renderMoodDist(feed);
     renderTimeline(feed);
@@ -108,20 +124,19 @@ async function loadData() {
   }
 }
 
-/** Safe wrapper for window.storage.get — returns null instead of throwing */
-async function safeGet(key, shared) {
-  try { return await window.storage.get(key, shared); } catch (_) { return null; }
+/** Safe wrapper — returns null instead of throwing on missing paths */
+async function safeGet(path) {
+  try { return await get(ref(db, path)); } catch (_) { return null; }
 }
 
 // ============================================================
 //  STAT CARDS
 // ============================================================
 function renderStats(reg, feed, activeUsers) {
-  const onlineCount  = Object.keys(activeUsers).length;
-  const totalUsers   = Object.keys(reg).length;
-  const totalSessions= Object.values(reg).reduce((a, u) => a + (u.sessions || 0), 0);
+  const onlineCount   = Object.keys(activeUsers).length;
+  const totalUsers    = Object.keys(reg).length;
+  const totalSessions = Object.values(reg).reduce((a, u) => a + (u.sessions || 0), 0);
 
-  // Top mood today
   const today      = new Date().toDateString();
   const todayFeed  = feed.filter(e => new Date(e.ts).toDateString() === today && e.action === 'start');
   const moodCounts = {};
@@ -188,9 +203,8 @@ function renderTimeline(feed) {
   const canvas = document.getElementById('timelineCanvas');
   const wrap   = canvas.parentElement;
 
-  // High-DPI support
-  canvas.width  = wrap.offsetWidth  * 2;
-  canvas.height = wrap.offsetHeight * 2;
+  canvas.width        = wrap.offsetWidth  * 2;
+  canvas.height       = wrap.offsetHeight * 2;
   canvas.style.width  = wrap.offsetWidth  + 'px';
   canvas.style.height = wrap.offsetHeight + 'px';
 
@@ -217,18 +231,13 @@ function renderTimeline(feed) {
   const pad  = 40;
   const barW = (W - pad * 2) / events.length;
 
-  // Grid lines
   ctx.strokeStyle = 'rgba(255,255,255,0.06)';
   ctx.lineWidth   = 1;
   for (let i = 0; i <= 4; i++) {
     const y = pad + (H - pad * 2) * (i / 4);
-    ctx.beginPath();
-    ctx.moveTo(pad, y);
-    ctx.lineTo(W - pad, y);
-    ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(pad, y); ctx.lineTo(W - pad, y); ctx.stroke();
   }
 
-  // Bars
   events.forEach((e, i) => {
     const color = moodColors[e.mood] || '#888';
     const x     = pad + i * barW + barW * 0.15;
@@ -244,7 +253,6 @@ function renderTimeline(feed) {
     ctx.roundRect(x, pad, bw, barH, [4, 4, 0, 0]);
     ctx.fill();
 
-    // Emoji label above bar
     ctx.font      = `${Math.min(22, barW * 0.7)}px serif`;
     ctx.textAlign = 'center';
     ctx.fillText(MOOD_META[e.mood]?.emoji || '?', x + bw / 2, pad - 8);
@@ -352,11 +360,10 @@ function renderFeed(feed) {
 //  SMART ALERTS
 // ============================================================
 function renderAlerts(feed, reg, activeUsers) {
-  const alerts   = [];
-  const today    = new Date().toDateString();
-  const todayFeed= feed.filter(e => new Date(e.ts).toDateString() === today && e.action === 'start');
+  const alerts    = [];
+  const today     = new Date().toDateString();
+  const todayFeed = feed.filter(e => new Date(e.ts).toDateString() === today && e.action === 'start');
 
-  // Users currently stressed
   const stressedNow = Object.entries(activeUsers).filter(([, d]) => d.mood === 'stressed');
   if (stressedNow.length > 0) {
     alerts.push({
@@ -365,18 +372,15 @@ function renderAlerts(feed, reg, activeUsers) {
     });
   }
 
-  // Users currently sad
   const sadNow = Object.entries(activeUsers).filter(([, d]) => d.mood === 'sad');
   if (sadNow.length > 0) {
     alerts.push({ type: 'info', icon: '😢', msg: `${sadNow.length} user${sadNow.length > 1 ? 's are' : ' is'} feeling sad right now` });
   }
 
-  // High activity today
   if (todayFeed.length >= 10) {
     alerts.push({ type: 'success', icon: '🔥', msg: `High engagement today — ${todayFeed.length} mood sessions logged!` });
   }
 
-  // Dominant mood today
   const moodCounts = {};
   todayFeed.forEach(e => { moodCounts[e.mood] = (moodCounts[e.mood] || 0) + 1; });
   const topMood = Object.entries(moodCounts).sort((a, b) => b[1] - a[1])[0];
@@ -388,13 +392,11 @@ function renderAlerts(feed, reg, activeUsers) {
     });
   }
 
-  // New users today
   const newToday = Object.values(reg).filter(u => new Date(u.joined).toDateString() === today).length;
   if (newToday > 0) {
     alerts.push({ type: 'success', icon: '🎉', msg: `${newToday} new user${newToday > 1 ? 's' : ''} joined today!` });
   }
 
-  // Default if nothing to alert
   if (alerts.length === 0) {
     alerts.push({ type: 'info', icon: '✅', msg: 'Everything looks normal. No alerts to show.' });
   }
@@ -407,10 +409,6 @@ function renderAlerts(feed, reg, activeUsers) {
 // ============================================================
 //  HELPERS
 // ============================================================
-/**
- * Returns a human-readable "time ago" string.
- * @param {number} ts  Unix timestamp in milliseconds
- */
 function timeAgo(ts) {
   const diff = Date.now() - ts;
   if (diff < 60000)    return 'just now';
@@ -418,3 +416,9 @@ function timeAgo(ts) {
   if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
   return new Date(ts).toLocaleDateString();
 }
+
+// ============================================================
+//  EXPOSE TO GLOBAL SCOPE  (HTML onclick attributes need these)
+// ============================================================
+window.adminLogin = adminLogin;
+window.loadData   = loadData;
