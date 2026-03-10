@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>MoodPlay Admin — Live Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Nunito:wght@300;400;600;700;800&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="admin.css"/>
+</head>
+<body>
+
+<!-- ADMIN AUTH GATE -->
+<div class="admin-auth" id="adminAuth">
+  <div class="admin-auth-card">
+    <div style="font-size:2.5rem">🛡️</div>
+    <div>
+      <h2>Admin Access</h2>
+      <p>MoodPlay Real-Time Dashboard</p>
+    </div>
+    <input type="text" id="adminUser" placeholder="Admin username" value="admin"/>
+    <input type="password" id="adminPass" placeholder="Admin password"/>
+    <div class="admin-err" id="adminErr"></div>
+    <button class="admin-btn" onclick="adminLogin()">Enter Dashboard</button>
+    <div style="font-size:.75rem;color:var(--muted)">Default: admin / admin123</div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-logo">🎮</div>
+  <div>
+    <div class="header-title">MoodPlay Admin</div>
+    <div class="header-sub">Real-Time Mood Intelligence Dashboard</div>
+  </div>
+  <div class="live-pill"><div class="live-dot"></div>LIVE</div>
+  <span class="last-refresh" id="lastRefresh">Not loaded yet</span>
+  <button class="refresh-btn" onclick="loadData()">⟳ Refresh Now</button>
+</div>
+
+<!-- MAIN LAYOUT -->
+<div class="main">
+
+  <!-- LEFT COLUMN -->
+  <div class="left-col">
+
+    <!-- STAT CARDS -->
+    <div class="stat-row">
+      <div class="stat-card" style="--c:#4caf50">
+        <div class="stat-val" id="s-online">—</div>
+        <div class="stat-label">Online Now</div>
+        <div class="stat-delta up" id="sd-online"></div>
+      </div>
+      <div class="stat-card" style="--c:#f7c948">
+        <div class="stat-val" id="s-total">—</div>
+        <div class="stat-label">Total Sessions</div>
+        <div class="stat-delta neutral" id="sd-total"></div>
+      </div>
+      <div class="stat-card" style="--c:#64b5f6">
+        <div class="stat-val" id="s-users">—</div>
+        <div class="stat-label">Registered Users</div>
+        <div class="stat-delta neutral"></div>
+      </div>
+      <div class="stat-card" style="--c:#ce93d8">
+        <div class="stat-val" id="s-topmood">—</div>
+        <div class="stat-label">Top Mood Today</div>
+        <div class="stat-delta neutral" id="sd-topmood"></div>
+      </div>
+    </div>
+
+    <!-- MOOD DISTRIBUTION -->
+    <div class="panel">
+      <div class="panel-title">📊 Mood Distribution <span id="dist-updated"></span></div>
+      <div class="mood-dist" id="moodDist"></div>
+    </div>
+
+    <!-- ACTIVITY TIMELINE (Canvas Chart) -->
+    <div class="panel">
+      <div class="panel-title">📈 Session Activity — Last 20 Events</div>
+      <div class="timeline-wrap"><canvas id="timelineCanvas"></canvas></div>
+    </div>
+
+    <!-- ALL USERS TABLE -->
+    <div class="panel">
+      <div class="panel-title">👥 All Users <span id="users-count"></span></div>
+      <div style="overflow-x:auto">
+        <table class="user-table">
+          <thead>
+            <tr>
+              <th>User</th>
+              <th>Status</th>
+              <th>Current Mood</th>
+              <th>Sessions</th>
+              <th>Last Seen</th>
+            </tr>
+          </thead>
+          <tbody id="usersBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- SMART ALERTS -->
+    <div class="panel">
+      <div class="panel-title">🔔 Smart Alerts</div>
+      <div class="alert-list" id="alertList"></div>
+    </div>
+
+  </div><!-- /left-col -->
+
+  <!-- RIGHT COLUMN -->
+  <div class="right-col">
+
+    <!-- ONLINE NOW -->
+    <div>
+      <div class="panel-title">🟢 Online Now &nbsp;<span id="online-count">0</span></div>
+      <div class="online-list" id="onlineList">
+        <div class="empty">No users online right now</div>
+      </div>
+    </div>
+
+    <!-- LIVE FEED -->
+    <div>
+      <div class="panel-title">⚡ Live Mood Feed &nbsp;<span id="feed-count"></span></div>
+      <div class="feed-list" id="feedList">
+        <div class="empty">Waiting for activity…</div>
+      </div>
+    </div>
+
+  </div><!-- /right-col -->
+
+</div><!-- /main -->
+
+<script src="admin.js"></script>
+</body>
+</html>
