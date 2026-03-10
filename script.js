@@ -4,10 +4,26 @@
    ======================================== */
 
 // ============================================================
-//  CONFIG  —  replace with your real keys
+//  FIREBASE — CDN ES MODULE IMPORTS
 // ============================================================
-const GEMINI_API_KEY = 'AIzaSyDemo_replace_with_your_key';
-// Get a free Gemini key at: https://aistudio.google.com
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
+import { getDatabase, ref, set, get, remove }
+  from "https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey:            "AIzaSyCq8TnGxdBiQtxi2lIwoe2v1YD8BTKcC_k",
+  authDomain:        "mood-play-0410.firebaseapp.com",
+  databaseURL:       "https://mood-play-0410-default-rtdb.firebaseio.com",
+  projectId:         "mood-play-0410",
+  storageBucket:     "mood-play-0410.firebasestorage.app",
+  messagingSenderId: "210625409421",
+  appId:             "1:210625409421:web:b71677114806316df50dc4",
+  measurementId:     "G-4N5BFYFZB6",
+};
+
+// Prevent duplicate initialisation if both pages share a service worker / module cache
+const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+const db  = getDatabase(app);
 
 // ============================================================
 //  MOOD DATA
@@ -46,83 +62,84 @@ const MOODS = {
 };
 
 // ============================================================
-//  SHARED BACKEND — window.storage (persistent, cross-session)
+//  SHARED BACKEND — Firebase Realtime Database
+//  Replaces the old window.storage API entirely.
+//
+//  Database layout:
+//    /active/{username}      → current mood event (deleted on session end)
+//    /feed/events            → array of last 300 events (all users)
+//    /users/reg              → object keyed by username (registry)
+//    /hist/{username}        → array of last 60 completed sessions
 // ============================================================
 const Backend = {
-  /**
-   * Push a mood event to the shared backend so the admin can see it.
-   * @param {string} username
-   * @param {string|null} mood
-   * @param {'start'|'end'} action
-   */
+
   async push(username, mood, action) {
     try {
       const evt = {
-        user: username,
+        user:   username,
         mood,
         action,
-        ts: Date.now(),
+        ts:     Date.now(),
         device: navigator.userAgent.includes('Mobile') ? 'mobile' : 'desktop',
       };
 
-      // Per-user active mood (admin reads these)
+      // ── Active presence node (admin reads this for "online now") ──
       if (action === 'start') {
-        await window.storage.set('active:' + username, JSON.stringify(evt), true);
+        await set(ref(db, 'active/' + username), evt);
       } else {
-        try { await window.storage.delete('active:' + username, true); } catch (_) {}
+        try { await remove(ref(db, 'active/' + username)); } catch (_) {}
       }
 
-      // Global event feed (admin live feed)
-      let feed = [];
-      try {
-        const r = await window.storage.get('feed:events', true);
-        feed = r ? JSON.parse(r.value) : [];
-      } catch (_) { feed = []; }
+      // ── Global event feed ──
+      const feedRef  = ref(db, 'feed/events');
+      const feedSnap = await get(feedRef);
+      let feed = feedSnap.exists() ? feedSnap.val() : [];
+      if (!Array.isArray(feed)) feed = Object.values(feed);
       feed.unshift(evt);
       if (feed.length > 300) feed = feed.slice(0, 300);
-      await window.storage.set('feed:events', JSON.stringify(feed), true);
+      await set(feedRef, feed);
 
-      // Users registry (admin user table)
-      let reg = {};
-      try {
-        const r = await window.storage.get('users:reg', true);
-        reg = r ? JSON.parse(r.value) : {};
-      } catch (_) { reg = {}; }
+      // ── Users registry ──
+      const regRef  = ref(db, 'users/reg');
+      const regSnap = await get(regRef);
+      let reg = regSnap.exists() ? regSnap.val() : {};
+
       if (!reg[username]) reg[username] = { joined: Date.now(), sessions: 0, moods: {} };
+      reg[username].moods = reg[username].moods || {};
+
       if (action === 'start') {
-        reg[username].sessions = (reg[username].sessions || 0) + 1;
-        reg[username].moods[mood] = (reg[username].moods[mood] || 0) + 1;
+        reg[username].sessions           = (reg[username].sessions || 0) + 1;
+        reg[username].moods[mood]        = (reg[username].moods[mood] || 0) + 1;
       }
-      reg[username].lastMood  = mood;
-      reg[username].lastSeen  = Date.now();
-      reg[username].online    = action === 'start';
-      reg[username].avatar    = username[0].toUpperCase();
-      await window.storage.set('users:reg', JSON.stringify(reg), true);
+      reg[username].lastMood = mood;
+      reg[username].lastSeen = Date.now();
+      reg[username].online   = action === 'start';
+      reg[username].avatar   = username[0].toUpperCase();
+
+      await set(regRef, reg);
 
     } catch (e) {
-      console.warn('Backend sync error:', e);
+      console.warn('Backend.push error:', e);
     }
   },
 
-  /** Append a completed session entry to the user's shared history */
   async pushHistory(username, entry) {
     try {
-      let hist = [];
-      try {
-        const r = await window.storage.get('hist:' + username, true);
-        hist = r ? JSON.parse(r.value) : [];
-      } catch (_) { hist = []; }
+      const histRef  = ref(db, 'hist/' + username);
+      const histSnap = await get(histRef);
+      let hist = histSnap.exists() ? histSnap.val() : [];
+      if (!Array.isArray(hist)) hist = Object.values(hist);
       hist.unshift(entry);
       if (hist.length > 60) hist = hist.slice(0, 60);
-      await window.storage.set('hist:' + username, JSON.stringify(hist), true);
+      await set(histRef, hist);
     } catch (e) {
-      console.warn('History push error:', e);
+      console.warn('Backend.pushHistory error:', e);
     }
   },
 };
 
 // ============================================================
-//  LOCAL STORAGE HELPER (user auth & local data)
+//  LOCAL STORAGE HELPER  (user auth & per-device data only)
 // ============================================================
 const LS = {
   get(k)    { try { return JSON.parse(localStorage.getItem('mp_' + k)); } catch { return null; } },
@@ -144,7 +161,6 @@ let aiInputVisible = false;
 // ============================================================
 window.addEventListener('DOMContentLoaded', () => {
   initOrbs();
-  // Auto-login from saved session
   const saved = LS.get('session');
   if (saved) {
     const users = LS.get('users') || {};
@@ -176,7 +192,7 @@ function doAuth() {
   const users = LS.get('users') || {};
 
   if (switchAuthTab._tab === 'signup') {
-    if (users[u])   { err.textContent = 'Username already taken.'; return; }
+    if (users[u])     { err.textContent = 'Username already taken.'; return; }
     if (p.length < 4) { err.textContent = 'Password must be ≥ 4 characters.'; return; }
     users[u] = { password: p, email: e, joined: Date.now(), avatar: u[0].toUpperCase() };
     LS.set('users', users);
@@ -193,7 +209,6 @@ function demoLogin() {
   if (!users['demo']) {
     users['demo'] = { password: 'demo', email: 'demo@moodplay.app', joined: Date.now() - 7 * 86400000, avatar: 'D' };
     LS.set('users', users);
-    // Seed demo history
     const hist  = [];
     const moods = ['happy', 'sad', 'stressed', 'bored', 'tired'];
     for (let i = 13; i >= 0; i--) {
@@ -209,7 +224,7 @@ function demoLogin() {
 function loginUser(username) {
   currentUser = username;
   LS.set('session', username);
-  document.getElementById('landing-avatar').textContent  = username[0].toUpperCase();
+  document.getElementById('landing-avatar').textContent   = username[0].toUpperCase();
   document.getElementById('landing-username').textContent = `Hi, ${username}! 👋`;
   document.getElementById('bottomNav').classList.add('visible');
   document.getElementById('syncBadge').classList.add('visible');
@@ -239,7 +254,6 @@ function showPage(id) {
 
 function navTo(dest) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-
   if (dest === 'home') {
     document.getElementById('nav-home').classList.add('active');
     showPage('page-landing');
@@ -272,7 +286,7 @@ function selectMood(mood) {
   document.body.className = 'mood-' + mood;
 
   const badge = document.getElementById('activeMoodBadge');
-  badge.textContent    = data.emoji + ' ' + data.label;
+  badge.textContent       = data.emoji + ' ' + data.label;
   badge.style.borderColor = data.color;
   badge.style.color       = data.color;
 
@@ -284,7 +298,6 @@ function selectMood(mood) {
   updateTabBtns();
   loadGame(data.games[0]);
 
-  // Push to admin backend
   Backend.push(currentUser, mood, 'start');
 
   showPage('page-games');
@@ -317,11 +330,9 @@ function saveMoodSession() {
   if (hist.length > 100) hist.shift();
   LS.set(key, hist);
 
-  // Push to shared backend
   Backend.pushHistory(currentUser, entry);
   Backend.push(currentUser, currentMood, 'end');
 
-  // Update local user stats
   const users = LS.get('users') || {};
   if (users[currentUser]) {
     users[currentUser].sessions = (users[currentUser].sessions || 0) + 1;
@@ -338,14 +349,10 @@ function calcStreak(history) {
   const days = new Set(history.map(h => new Date(h.ts).toDateString()));
   let streak = 0;
   let d = new Date();
-  while (days.has(d.toDateString())) {
-    streak++;
-    d.setDate(d.getDate() - 1);
-  }
+  while (days.has(d.toDateString())) { streak++; d.setDate(d.getDate() - 1); }
   return streak;
 }
 
-// Save session when user closes the tab
 window.addEventListener('beforeunload', () => {
   if (moodStartTime && currentMood) saveMoodSession();
 });
@@ -353,6 +360,9 @@ window.addEventListener('beforeunload', () => {
 // ============================================================
 //  GEMINI AI MOOD DETECTION
 // ============================================================
+const GEMINI_API_KEY = 'AIzaSyDemo_replace_with_your_key';
+// Get a free key at: https://aistudio.google.com
+
 function toggleAiInput() {
   aiInputVisible = !aiInputVisible;
   document.getElementById('aiInputBox').classList.toggle('visible', aiInputVisible);
@@ -377,7 +387,6 @@ User says: "${text}"`;
     let message      = '';
 
     if (GEMINI_API_KEY.includes('Demo_replace')) {
-      // ── Keyword fallback (no API key) ──
       const t = text.toLowerCase();
       if      (t.match(/happy|great|amazing|joy|excit|good|love/)) detectedMood = 'happy';
       else if (t.match(/sad|cry|depress|lonely|miss|upset|down/))  detectedMood = 'sad';
@@ -385,7 +394,6 @@ User says: "${text}"`;
       else if (t.match(/tired|exhaust|sleep|fatigue|drain/))       detectedMood = 'tired';
       message = "Let's find the right vibe for you 🌟";
     } else {
-      // ── Real Gemini API call ──
       const res = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
         {
@@ -555,8 +563,8 @@ GAMES.reactionSpeed = function (vp) {
   box.addEventListener('click', () => {
     if (state === 'idle' || state === 'result') {
       state = 'wait';
-      box.textContent = 'Wait…';
-      box.className   = 'wait';
+      box.textContent     = 'Wait…';
+      box.className       = 'wait';
       scoreEl.textContent = '';
       timer = setTimeout(() => {
         state           = 'ready';
@@ -564,16 +572,14 @@ GAMES.reactionSpeed = function (vp) {
         box.className   = 'go';
         startTime       = Date.now();
       }, 1500 + Math.random() * 3000);
-
     } else if (state === 'wait') {
       clearTimeout(timer);
-      state = 'result';
+      state               = 'result';
       box.textContent     = 'Too early! Retry';
       box.className       = '';
       scoreEl.textContent = '😬 Too soon!';
-
     } else if (state === 'ready') {
-      const ms = Date.now() - startTime;
+      const ms        = Date.now() - startTime;
       state           = 'result';
       box.textContent = `${ms}ms — Retry`;
       box.className   = '';
@@ -638,7 +644,7 @@ GAMES.colorMatch = function (vp) {
 // ─── 3. MEMORY MATCH ──────────────────────────────────────
 GAMES.memoryMatch = function (vp) {
   const PAIRS = ['🍎', '🍊', '🍋', '🍇', '🍓', '🎸', '🎺', '🎹'];
-  let cards   = [...PAIRS, ...PAIRS]
+  let cards    = [...PAIRS, ...PAIRS]
     .sort(() => Math.random() - 0.5)
     .map((emoji, id) => ({ id, emoji, flipped: false, matched: false }));
   let selected = [], locked = false, moves = 0;
@@ -856,8 +862,8 @@ GAMES.quickTap = function (vp) {
   target.addEventListener('click', () => {
     if (!running) return;
     score++;
-    scoreEl.textContent     = `Score: ${score} | Time: ${timeLeft}s`;
-    target.style.transform  = 'scale(0.92)';
+    scoreEl.textContent    = `Score: ${score} | Time: ${timeLeft}s`;
+    target.style.transform = 'scale(0.92)';
     setTimeout(() => target.style.transform = '', 80);
   });
 
@@ -869,7 +875,7 @@ GAMES.quickTap = function (vp) {
       scoreEl.textContent = `Score: ${score} | Time: ${timeLeft}s`;
       if (timeLeft <= 0) {
         clearInterval(interval);
-        running = false;
+        running              = false;
         scoreEl.textContent  = `🎯 Final Score: ${score} taps!`;
         startBtn.disabled    = false;
         startBtn.textContent = 'Play Again';
@@ -937,3 +943,24 @@ GAMES.relaxRhythm = function (vp) {
 
   gameCleanup._fn = () => clearInterval(interval);
 };
+
+// ============================================================
+//  EXPOSE ALL HTML onclick FUNCTIONS TO GLOBAL SCOPE
+//  Required because ES modules are scoped — onclick="" in HTML
+//  cannot see module-level functions unless we attach them here.
+// ============================================================
+Object.assign(window, {
+  switchAuthTab,
+  doAuth,
+  demoLogin,
+  logout,
+  showPage,
+  navTo,
+  goToMoodSelection,
+  selectMood,
+  switchTab,
+  toggleAiInput,
+  detectMoodWithGemini,
+  renderAnalytics,
+  renderLeaderboard,
+});
