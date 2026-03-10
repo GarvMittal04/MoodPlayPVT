@@ -9,87 +9,58 @@
 </head>
 <body>
 
-<!-- Floating Orbs Background -->
 <div class="bg-orbs" id="bgOrbs"></div>
-
-<!-- Toast Notification -->
 <div class="toast" id="toast"></div>
+<div class="sync-badge" id="syncBadge"><div class="sync-dot"></div><span>Live</span></div>
 
-<!-- Live Sync Badge -->
-<div class="sync-badge" id="syncBadge">
-  <div class="sync-dot"></div>
-  <span>Live</span>
-</div>
-
-<!-- ===== BOTTOM NAVIGATION ===== -->
+<!-- BOTTOM NAV -->
 <div class="bottom-nav" id="bottomNav">
   <div class="nav-pill">
-    <button class="nav-item active" id="nav-home" onclick="navTo('home')">
-      <span class="nav-icon">🎮</span>Play
-    </button>
-    <button class="nav-item" id="nav-analytics" onclick="navTo('analytics')">
-      <span class="nav-icon">📊</span>Analytics
-    </button>
-    <button class="nav-item" id="nav-leaderboard" onclick="navTo('leaderboard')">
-      <span class="nav-icon">🏆</span>Ranks
-    </button>
-    <button class="nav-item" id="nav-logout" onclick="logout()">
-      <span class="nav-icon">👤</span>Logout
-    </button>
+    <button class="nav-item active" id="nav-home" onclick="navTo('home')"><span class="nav-icon">🎮</span>Play</button>
+    <button class="nav-item" id="nav-analytics" onclick="navTo('analytics')"><span class="nav-icon">📊</span>Analytics</button>
+    <button class="nav-item" id="nav-leaderboard" onclick="navTo('leaderboard')"><span class="nav-icon">🏆</span>Ranks</button>
+    <button class="nav-item" id="nav-logout" onclick="logout()"><span class="nav-icon">👤</span>Logout</button>
   </div>
 </div>
 
-<!-- ===== PAGE: AUTH ===== -->
+<!-- PAGE: AUTH -->
 <div id="page-auth" class="page active">
   <div class="auth-card">
     <div class="auth-logo">🎮</div>
-    <div>
-      <div class="auth-title">MoodPlay</div>
-      <div class="auth-sub">Games &amp; music for every feeling</div>
-    </div>
+    <div><div class="auth-title">MoodPlay</div><div class="auth-sub">Games &amp; music for every feeling</div></div>
     <div class="auth-tabs">
       <button class="auth-tab active" id="tab-login" onclick="switchAuthTab('login')">Login</button>
       <button class="auth-tab" id="tab-signup" onclick="switchAuthTab('signup')">Sign Up</button>
     </div>
     <div style="width:100%;display:flex;flex-direction:column;gap:10px">
-      <input class="auth-input" id="auth-username" type="text" placeholder="Username" autocomplete="username"/>
-      <input class="auth-input" id="auth-password" type="password" placeholder="Password" autocomplete="current-password"/>
-      <input class="auth-input" id="auth-email" type="email" placeholder="Email (sign up only)" style="display:none" autocomplete="email"/>
+      <input class="auth-input" id="auth-username" type="text" placeholder="Username"/>
+      <input class="auth-input" id="auth-password" type="password" placeholder="Password"/>
+      <input class="auth-input" id="auth-email" type="email" placeholder="Email (sign up only)" style="display:none"/>
     </div>
     <div class="auth-err" id="auth-err"></div>
     <button class="btn-primary" onclick="doAuth()">
       <span id="auth-btn-text">Login</span>
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M5 12h14M12 5l7 7-7 7"/>
-      </svg>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
     </button>
     <div class="auth-demo" onclick="demoLogin()">Try demo account →</div>
   </div>
 </div>
 
-<!-- ===== PAGE: LANDING ===== -->
+<!-- PAGE: LANDING -->
 <div id="page-landing" class="page">
   <div class="landing-content">
-    <div class="logo-wrap">
-      <span class="logo-icon">🎮</span>
-      <h1 class="logo-title">MoodPlay</h1>
-    </div>
-    <div class="user-chip">
-      <div class="user-avatar" id="landing-avatar"></div>
-      <span id="landing-username"></span>
-    </div>
+    <div class="logo-wrap"><span class="logo-icon">🎮</span><h1 class="logo-title">MoodPlay</h1></div>
+    <div class="user-chip"><div class="user-avatar" id="landing-avatar"></div><span id="landing-username"></span></div>
     <p class="landing-tagline">Choose your mood and relax<br/>with games &amp; music.</p>
     <button class="btn-primary" onclick="goToMoodSelection()">
       <span>Pick a Mood</span>
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M5 12h14M12 5l7 7-7 7"/>
-      </svg>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
     </button>
     <div class="wave-bottom"></div>
   </div>
 </div>
 
-<!-- ===== PAGE: MOOD SELECT ===== -->
+<!-- PAGE: MOOD SELECT -->
 <div id="page-mood" class="page">
   <div class="mood-header">
     <button class="btn-back" onclick="showPage('page-landing')">← Back</button>
@@ -97,65 +68,33 @@
     <p>Pick a mood — or let AI detect it</p>
   </div>
   <div class="mood-grid">
-    <button class="mood-card" data-mood="happy" onclick="selectMood('happy')">
-      <span class="mood-emoji">😄</span>
-      <span class="mood-label">Happy</span>
-      <span class="mood-desc">Boost the joy</span>
-    </button>
-    <button class="mood-card" data-mood="sad" onclick="selectMood('sad')">
-      <span class="mood-emoji">😢</span>
-      <span class="mood-label">Sad</span>
-      <span class="mood-desc">Gentle comfort</span>
-    </button>
-    <button class="mood-card" data-mood="stressed" onclick="selectMood('stressed')">
-      <span class="mood-emoji">😰</span>
-      <span class="mood-label">Stressed</span>
-      <span class="mood-desc">Find your calm</span>
-    </button>
-    <button class="mood-card" data-mood="bored" onclick="selectMood('bored')">
-      <span class="mood-emoji">😑</span>
-      <span class="mood-label">Bored</span>
-      <span class="mood-desc">Spark it up</span>
-    </button>
-    <button class="mood-card" data-mood="tired" onclick="selectMood('tired')">
-      <span class="mood-emoji">😴</span>
-      <span class="mood-label">Tired</span>
-      <span class="mood-desc">Ease into rest</span>
-    </button>
+    <button class="mood-card" data-mood="happy"    onclick="selectMood('happy')">   <span class="mood-emoji">😄</span><span class="mood-label">Happy</span>   <span class="mood-desc">Boost the joy</span></button>
+    <button class="mood-card" data-mood="sad"      onclick="selectMood('sad')">     <span class="mood-emoji">😢</span><span class="mood-label">Sad</span>     <span class="mood-desc">Gentle comfort</span></button>
+    <button class="mood-card" data-mood="stressed" onclick="selectMood('stressed')"><span class="mood-emoji">😰</span><span class="mood-label">Stressed</span><span class="mood-desc">Find your calm</span></button>
+    <button class="mood-card" data-mood="bored"    onclick="selectMood('bored')">   <span class="mood-emoji">😑</span><span class="mood-label">Bored</span>   <span class="mood-desc">Spark it up</span></button>
+    <button class="mood-card" data-mood="tired"    onclick="selectMood('tired')">   <span class="mood-emoji">😴</span><span class="mood-label">Tired</span>   <span class="mood-desc">Ease into rest</span></button>
   </div>
-
-  <!-- AI Detect -->
-  <button class="ai-detect-btn" onclick="toggleAiInput()">
-    <span>✨</span> Let Gemini AI detect my mood
-  </button>
+  <button class="ai-detect-btn" onclick="toggleAiInput()"><span>✨</span> Let Gemini AI detect my mood</button>
   <div class="ai-input-box" id="aiInputBox">
-    <textarea class="ai-textarea" id="aiTextInput"
-      placeholder="Tell Gemini how you're feeling right now... (e.g. 'I had a rough day and just want to zone out')"></textarea>
-    <button class="btn-primary" onclick="detectMoodWithGemini()" style="padding:12px 24px">
-      <span>✨ Analyse with Gemini</span>
-    </button>
+    <textarea class="ai-textarea" id="aiTextInput" placeholder="Tell Gemini how you're feeling right now…"></textarea>
+    <button class="btn-primary" onclick="detectMoodWithGemini()" style="padding:12px 24px"><span>✨ Analyse with Gemini</span></button>
     <div class="ai-result" id="aiResult"></div>
   </div>
 </div>
 
-<!-- ===== PAGE: GAMES + MUSIC ===== -->
+<!-- PAGE: GAMES -->
 <div id="page-games" class="page">
   <div class="games-header">
     <button class="btn-back" onclick="goToMoodSelection()">← Back</button>
     <div class="mood-badge" id="activeMoodBadge"></div>
   </div>
-
-  <!-- Music Player -->
   <div class="music-section">
     <h3 class="section-title">🎵 Music for your mood</h3>
     <div class="youtube-wrap">
       <iframe id="ytPlayer" width="100%" height="155" src="" frameborder="0"
-        allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture"
-        allowfullscreen></iframe>
+        allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen></iframe>
     </div>
   </div>
-
-  <!-- Games -->
   <div class="games-section">
     <h3 class="section-title">🕹️ Games for you</h3>
     <div class="game-tabs">
@@ -166,32 +105,20 @@
   </div>
 </div>
 
-<!-- ===== PAGE: ANALYTICS ===== -->
+<!-- PAGE: ANALYTICS -->
 <div id="page-analytics" class="page">
   <div class="analytics-wrap">
-    <div class="page-header">
-      <button class="btn-back" onclick="navTo('home')">← Back</button>
-      <h2>Your Analytics</h2>
-    </div>
+    <div class="page-header"><button class="btn-back" onclick="navTo('home')">← Back</button><h2>Your Analytics</h2></div>
     <div class="stat-grid" id="statGrid"></div>
-    <div class="section-card">
-      <h3>Mood Frequency</h3>
-      <div class="bar-chart" id="barChart"></div>
-    </div>
-    <div class="section-card">
-      <h3>Recent History</h3>
-      <div class="history-list" id="historyList"></div>
-    </div>
+    <div class="section-card"><h3>Mood Frequency</h3><div class="bar-chart" id="barChart"></div></div>
+    <div class="section-card"><h3>Recent History</h3><div class="history-list" id="historyList"></div></div>
   </div>
 </div>
 
-<!-- ===== PAGE: LEADERBOARD ===== -->
+<!-- PAGE: LEADERBOARD -->
 <div id="page-leaderboard" class="page">
   <div class="leaderboard-wrap">
-    <div class="page-header">
-      <button class="btn-back" onclick="navTo('home')">← Back</button>
-      <h2>🏆 Leaderboard</h2>
-    </div>
+    <div class="page-header"><button class="btn-back" onclick="navTo('home')">← Back</button><h2>🏆 Leaderboard</h2></div>
     <div class="lb-tabs">
       <button class="lb-tab active" onclick="renderLeaderboard('sessions',event)">Most Sessions</button>
       <button class="lb-tab" onclick="renderLeaderboard('streak',event)">Streak</button>
@@ -201,7 +128,24 @@
   </div>
 </div>
 
-<!-- ✅ type="module" is required because script.js uses Firebase ES module imports -->
-<script type="module" src="script.js"></script>
+<!-- ══════════════════════════════════════════════
+     FIREBASE  — compat SDK (gives global firebase)
+     ══════════════════════════════════════════════ -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script>
+  firebase.initializeApp({
+    apiKey:            "AIzaSyCq8TnGxdBiQtxi2lIwoe2v1YD8BTKcC_k",
+    authDomain:        "mood-play-0410.firebaseapp.com",
+    databaseURL:       "https://mood-play-0410-default-rtdb.firebaseio.com",
+    projectId:         "mood-play-0410",
+    storageBucket:     "mood-play-0410.firebasestorage.app",
+    messagingSenderId: "210625409421",
+    appId:             "1:210625409421:web:b71677114806316df50dc4",
+    measurementId:     "G-4N5BFYFZB6"
+  });
+</script>
+
+<script src="script.js"></script>
 </body>
 </html>
