@@ -7,7 +7,7 @@
 //  CONFIG  —  change these credentials!
 // ============================================================
 const ADMIN_CREDS = {
-  admin: 'admin123',
+  admin: 'admin@GM',
   // Add more admins here: username: 'password'
 };
 
