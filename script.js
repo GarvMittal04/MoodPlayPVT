@@ -6,7 +6,7 @@
 // ============================================================
 //  CONFIG  —  replace with your real keys
 // ============================================================
-const GEMINI_API_KEY = 'AIzaSyDemo_replace_with_your_key';
+const GEMINI_API_KEY = 'AIzaSyDRQ5d0Q-7dFUI3ZLzFrXx4No9n3JcMBD4';
 // Get a free Gemini key at: https://aistudio.google.com
 
 // ============================================================
