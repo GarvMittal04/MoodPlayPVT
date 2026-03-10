@@ -80,7 +80,7 @@
     </div>
     <p class="landing-tagline">Choose your mood and relax<br/>with games &amp; music.</p>
     <button class="btn-primary" onclick="goToMoodSelection()">
-      <span>Pick a Mood 😉</span>
+      <span>Pick a Mood</span>
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M5 12h14M12 5l7 7-7 7"/>
       </svg>
@@ -201,6 +201,7 @@
   </div>
 </div>
 
-<script src="script.js"></script>
+<!-- ✅ type="module" is required because script.js uses Firebase ES module imports -->
+<script type="module" src="script.js"></script>
 </body>
 </html>
