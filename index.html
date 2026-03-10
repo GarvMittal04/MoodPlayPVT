@@ -1,91 +1,244 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>MoodPlay</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Nunito:wght@300;400;600;700&display=swap" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="style.css"/>
 </head>
 <body>
 
-  <canvas id="particleCanvas"></canvas>
+  <!-- Orbs background -->
+  <div class="bg-orbs" id="bgOrbs"></div>
 
-  <!-- PAGE 1 · LANDING -->
+  <!-- Toast -->
+  <div id="toast" class="toast"></div>
+
+  <!-- ═══ NAV (shown when logged in) ═══ -->
+  <nav id="app-nav" class="app-nav hidden">
+    <div class="nav-logo">🎮 <span>MoodPlay</span></div>
+    <div class="nav-links">
+      <button class="nav-btn" data-page="page-mood" id="nav-play">▶ Play</button>
+      <button class="nav-btn" data-page="page-history" id="nav-history">📋 History</button>
+      <button class="nav-btn" data-page="page-analytics" id="nav-analytics">📊 Analytics</button>
+      <button class="nav-btn" data-page="page-leaderboard" id="nav-leaderboard">🏆 Leaderboard</button>
+    </div>
+    <div class="nav-right">
+      <button class="nav-icon-btn" id="nav-settings" title="Settings">⚙️</button>
+      <div class="nav-user" id="nav-user-badge"></div>
+      <button class="nav-icon-btn" id="nav-logout" title="Logout">↩</button>
+    </div>
+  </nav>
+
+  <!-- ═══ PAGE: LANDING ═══ -->
   <section id="page-landing" class="page active">
-    <div class="landing-card">
-      <div class="landing-icon">🎮</div>
-      <h1 class="brand">MoodPlay</h1>
-      <p class="tagline">Choose your mood and relax<br>with games &amp; music.</p>
-      <button id="btn-start" class="cta-btn">Let's Play <span>→</span></button>
+    <div class="landing-content">
+      <div class="logo-wrap">
+        <span class="logo-icon">🎮</span>
+        <h1 class="logo-title">MoodPlay</h1>
+      </div>
+      <p class="landing-tagline">Choose your mood and relax<br/>with games &amp; music.</p>
+      <div class="landing-badges">
+        <span class="badge">🤖 AI Detection</span>
+        <span class="badge">🏆 Leaderboard</span>
+        <span class="badge">📊 Analytics</span>
+      </div>
+      <button id="btn-landing-start" class="btn-primary">
+        <span>Get Started</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </button>
     </div>
   </section>
 
-  <!-- PAGE 2 · MOOD SELECTION -->
+  <!-- ═══ PAGE: AUTH (Login / Register) ═══ -->
+  <section id="page-auth" class="page">
+    <div class="auth-card">
+      <div class="auth-tabs">
+        <button class="auth-tab active" id="auth-tab-login">Login</button>
+        <button class="auth-tab" id="auth-tab-register">Register</button>
+      </div>
+
+      <!-- Login Form -->
+      <div id="auth-form-login" class="auth-form">
+        <h2 class="auth-title">Welcome back 👋</h2>
+        <input type="text" id="login-username" class="auth-input" placeholder="Username"/>
+        <input type="password" id="login-password" class="auth-input" placeholder="Password"/>
+        <button id="btn-login" class="btn-primary full-width">Login</button>
+        <p class="auth-switch">No account? <button class="link-btn" id="switch-to-register">Register</button></p>
+      </div>
+
+      <!-- Register Form -->
+      <div id="auth-form-register" class="auth-form hidden">
+        <h2 class="auth-title">Join MoodPlay ✨</h2>
+        <input type="text" id="reg-username" class="auth-input" placeholder="Choose a username"/>
+        <input type="password" id="reg-password" class="auth-input" placeholder="Password"/>
+        <input type="password" id="reg-confirm" class="auth-input" placeholder="Confirm password"/>
+        <button id="btn-register" class="btn-primary full-width">Create Account</button>
+        <p class="auth-switch">Have an account? <button class="link-btn" id="switch-to-login">Login</button></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ PAGE: MOOD SELECTION ═══ -->
   <section id="page-mood" class="page">
     <div class="page-inner">
-      <button id="btn-back-landing" class="back-btn">← Back</button>
-      <div class="page-heading">
-        <h2>How are you <em>feeling?</em></h2>
-        <p>Pick a mood to unlock your personalised experience</p>
+      <div class="mood-header">
+        <h2 id="mood-greeting">How are you feeling?</h2>
+        <p>Pick a mood or let AI detect it for you</p>
       </div>
-      <div class="mood-grid">
-        <button class="mood-pill" data-mood="happy">
-          <span class="pill-emoji">😄</span>
-          <span class="pill-name">Happy</span>
-          <span class="pill-hint">Boost the joy</span>
-        </button>
-        <button class="mood-pill" data-mood="sad">
-          <span class="pill-emoji">😢</span>
-          <span class="pill-name">Sad</span>
-          <span class="pill-hint">Gentle comfort</span>
-        </button>
-        <button class="mood-pill" data-mood="stressed">
-          <span class="pill-emoji">😰</span>
-          <span class="pill-name">Stressed</span>
-          <span class="pill-hint">Find your calm</span>
-        </button>
-        <button class="mood-pill" data-mood="bored">
-          <span class="pill-emoji">😑</span>
-          <span class="pill-name">Bored</span>
-          <span class="pill-hint">Spark it up</span>
-        </button>
-        <button class="mood-pill" data-mood="tired">
-          <span class="pill-emoji">😴</span>
-          <span class="pill-name">Tired</span>
-          <span class="pill-hint">Ease into rest</span>
-        </button>
+
+      <!-- Detection method tabs -->
+      <div class="detect-tabs">
+        <button class="detect-tab active" id="dtab-manual">🖱️ Choose Manually</button>
+        <button class="detect-tab" id="dtab-ai">🤖 AI Detect</button>
+      </div>
+
+      <!-- Manual -->
+      <div id="detect-manual" class="detect-panel">
+        <div class="mood-grid">
+          <button class="mood-card" data-mood="happy"><span class="mood-emoji">😄</span><span class="mood-label">Happy</span><span class="mood-desc">Boost the joy</span></button>
+          <button class="mood-card" data-mood="sad"><span class="mood-emoji">😢</span><span class="mood-label">Sad</span><span class="mood-desc">Gentle comfort</span></button>
+          <button class="mood-card" data-mood="stressed"><span class="mood-emoji">😰</span><span class="mood-label">Stressed</span><span class="mood-desc">Find your calm</span></button>
+          <button class="mood-card" data-mood="bored"><span class="mood-emoji">😑</span><span class="mood-label">Bored</span><span class="mood-desc">Spark it up</span></button>
+          <button class="mood-card" data-mood="tired"><span class="mood-emoji">😴</span><span class="mood-label">Tired</span><span class="mood-desc">Ease into rest</span></button>
+        </div>
+      </div>
+
+      <!-- AI Detection -->
+      <div id="detect-ai" class="detect-panel hidden">
+        <div class="ai-card">
+          <div class="ai-card-header">
+            <span class="ai-icon">🤖</span>
+            <div>
+              <div class="ai-card-title">AI Mood Detection</div>
+              <div class="ai-card-sub">Powered by Claude</div>
+            </div>
+          </div>
+          <textarea id="ai-input" class="ai-textarea" placeholder="Tell me how you're feeling right now... (e.g. 'I feel exhausted from work and can't stop overthinking')"></textarea>
+          <button id="btn-ai-detect" class="btn-primary full-width">
+            <span id="ai-btn-text">✨ Detect My Mood</span>
+          </button>
+          <div id="ai-result" class="ai-result hidden">
+            <div class="ai-result-mood" id="ai-result-emoji"></div>
+            <div class="ai-result-info">
+              <div class="ai-result-name" id="ai-result-name"></div>
+              <div class="ai-result-reason" id="ai-result-reason"></div>
+              <div class="ai-result-confidence" id="ai-result-conf"></div>
+            </div>
+            <button id="btn-ai-confirm" class="btn-primary">Play This Mood →</button>
+          </div>
+          <p class="ai-note">Requires Anthropic API key in ⚙️ Settings</p>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- PAGE 3 · GAMES + MUSIC -->
+  <!-- ═══ PAGE: GAMES + MUSIC ═══ -->
   <section id="page-games" class="page">
-    <div class="page-inner games-inner">
-      <header class="games-topbar">
-        <button id="btn-back-mood" class="back-btn">← Back</button>
-        <div id="mood-chip" class="mood-chip"></div>
-      </header>
-      <div class="card music-card">
-        <div class="card-label">🎵 Music for your mood</div>
-        <div class="yt-shell">
-          <iframe id="yt-player" src="" title="Mood music" frameborder="0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowfullscreen></iframe>
+    <div class="page-inner">
+      <div class="games-header">
+        <button id="btn-back-games" class="btn-back">← Back</button>
+        <div class="mood-badge" id="activeMoodBadge"></div>
+      </div>
+
+      <!-- Spotify Player -->
+      <div class="music-section">
+        <h3 class="section-title">🎵 Music for your mood</h3>
+        <div class="spotify-wrap">
+          <iframe id="spotifyPlayer"
+            src="" frameborder="0"
+            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+            loading="lazy"></iframe>
         </div>
       </div>
-      <div class="card games-card">
-        <div class="card-label">🕹️ Games for you</div>
-        <div class="tab-row">
-          <button id="tab-btn-1" class="tab-btn active">Game 1</button>
-          <button id="tab-btn-2" class="tab-btn">Game 2</button>
+
+      <!-- Games -->
+      <div class="games-section">
+        <h3 class="section-title">🕹️ Games for you</h3>
+        <div class="game-tabs">
+          <button class="tab-btn active" id="tab1Btn">Game 1</button>
+          <button class="tab-btn" id="tab2Btn">Game 2</button>
         </div>
-        <div id="game-area" class="game-area"></div>
+        <div class="game-viewport" id="gameViewport"></div>
       </div>
     </div>
   </section>
+
+  <!-- ═══ PAGE: HISTORY ═══ -->
+  <section id="page-history" class="page">
+    <div class="page-inner">
+      <div class="page-title-row">
+        <h2 class="page-title">📋 Mood History</h2>
+        <div class="history-filters">
+          <select id="history-filter" class="filter-select">
+            <option value="all">All Moods</option>
+            <option value="happy">😄 Happy</option>
+            <option value="sad">😢 Sad</option>
+            <option value="stressed">😰 Stressed</option>
+            <option value="bored">😑 Bored</option>
+            <option value="tired">😴 Tired</option>
+          </select>
+        </div>
+      </div>
+      <div id="history-list" class="history-list"></div>
+    </div>
+  </section>
+
+  <!-- ═══ PAGE: ANALYTICS ═══ -->
+  <section id="page-analytics" class="page">
+    <div class="page-inner">
+      <h2 class="page-title">📊 Analytics Dashboard</h2>
+      <div class="stats-grid" id="stats-grid"></div>
+      <div class="charts-grid">
+        <div class="chart-card">
+          <div class="chart-card-title">Mood Breakdown</div>
+          <canvas id="chart-mood-donut"></canvas>
+        </div>
+        <div class="chart-card">
+          <div class="chart-card-title">Sessions This Week</div>
+          <canvas id="chart-weekly"></canvas>
+        </div>
+        <div class="chart-card full-width">
+          <div class="chart-card-title">Game Performance (Avg Score)</div>
+          <canvas id="chart-games"></canvas>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ PAGE: LEADERBOARD ═══ -->
+  <section id="page-leaderboard" class="page">
+    <div class="page-inner">
+      <h2 class="page-title">🏆 Leaderboard</h2>
+      <div class="lb-tabs">
+        <button class="lb-tab active" id="lb-tab-all">All Time</button>
+        <button class="lb-tab" id="lb-tab-week">This Week</button>
+      </div>
+      <div id="lb-table" class="lb-table"></div>
+    </div>
+  </section>
+
+  <!-- ═══ SETTINGS MODAL ═══ -->
+  <div id="settings-modal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>⚙️ Settings</h3>
+        <button id="modal-close" class="modal-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <label class="modal-label">Anthropic API Key <span class="label-note">(for AI mood detection)</span></label>
+        <input type="password" id="api-key-input" class="auth-input" placeholder="sk-ant-..."/>
+        <button id="btn-save-key" class="btn-primary" style="width:100%;margin-top:10px">Save Key</button>
+        <div class="modal-divider"></div>
+        <label class="modal-label danger-label">Danger Zone</label>
+        <button id="btn-clear-data" class="btn-danger">🗑️ Clear My Data</button>
+      </div>
+    </div>
+  </div>
 
   <script src="script.js"></script>
 </body>

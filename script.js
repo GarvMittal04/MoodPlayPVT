@@ -1,179 +1,241 @@
-/* ═══════════════════════════════════════════
-   MOODPLAY · script.js
-   No onclick attributes — pure event listeners
-═══════════════════════════════════════════ */
-
 'use strict';
+/* ════════════════════════════════════════
+   MOODPLAY v2 · script.js
+   Auth · AI · Games · History · Analytics · Leaderboard
+════════════════════════════════════════ */
 
 // ─────────────────────────────────────────
-// MOOD DATA
+// CONSTANTS
 // ─────────────────────────────────────────
-const MOOD_DATA = {
-  happy: {
-    label: 'Happy 😄',
-    ytSrc: 'https://www.youtube.com/embed/5qap5aO4i9A?autoplay=1',
-    games: ['reactionSpeed', 'colorMatch'],
-    tabLabels: ['Reaction Speed', 'Color Match'],
-  },
-  sad: {
-    label: 'Sad 😢',
-    ytSrc: 'https://www.youtube.com/embed/jfKfPfyJRdk?autoplay=1',
-    games: ['slidingPuzzle', 'bubblePop'],
-    tabLabels: ['Simple Puzzle', 'Bubble Pop'],
-  },
-  stressed: {
-    label: 'Stressed 😰',
-    ytSrc: 'https://www.youtube.com/embed/lFcSrYw-ARY?autoplay=1',
-    games: ['breathingClick', 'bubblePop'],
-    tabLabels: ['Breathing Game', 'Bubble Pop'],
-  },
-  bored: {
-    label: 'Bored 😑',
-    ytSrc: 'https://www.youtube.com/embed/5yx6BWlEVcY?autoplay=1',
-    games: ['memoryMatch', 'quickTap'],
-    tabLabels: ['Memory Match', 'Quick Tap'],
-  },
-  tired: {
-    label: 'Tired 😴',
-    ytSrc: 'https://www.youtube.com/embed/1ZYbU82GVz4?autoplay=1',
-    games: ['slidingPuzzle', 'relaxRhythm'],
-    tabLabels: ['Slow Puzzle', 'Relax Rhythm'],
-  },
+const MOOD_META = {
+  happy:   { emoji:'😄', label:'Happy',   color:'#f7c948', spotify:'37i9dQZF1DXdPec7aLTmlC' },
+  sad:     { emoji:'😢', label:'Sad',     color:'#64b5f6', spotify:'37i9dQZF1DX2pSTOxoPbx9' },
+  stressed:{ emoji:'😰', label:'Stressed',color:'#81c784', spotify:'37i9dQZF1DWXe9gFZP0gtP' },
+  bored:   { emoji:'😑', label:'Bored',   color:'#ff8a65', spotify:'37i9dQZF1DX1lVhptIYRda' },
+  tired:   { emoji:'😴', label:'Tired',   color:'#ce93d8', spotify:'37i9dQZF1DWZd79rJ6a7lp' },
+};
+const MOOD_GAMES = {
+  happy:   { games:['reactionSpeed','colorMatch'],   labels:['Reaction Speed','Color Match'] },
+  sad:     { games:['slidingPuzzle','bubblePop'],     labels:['Simple Puzzle','Calm Bubble Pop'] },
+  stressed:{ games:['breathingClick','bubblePop'],   labels:['Breathing Game','Bubble Pop'] },
+  bored:   { games:['memoryMatch','quickTap'],        labels:['Memory Match','Quick Tap'] },
+  tired:   { games:['slidingPuzzle','relaxRhythm'],  labels:['Slow Puzzle','Relax Rhythm'] },
+};
+const GAME_NAMES = { reactionSpeed:'Reaction Speed', colorMatch:'Color Match', slidingPuzzle:'Sliding Puzzle', bubblePop:'Bubble Pop', breathingClick:'Breathing Click', memoryMatch:'Memory Match', quickTap:'Quick Tap', relaxRhythm:'Relax Rhythm' };
+
+// ─────────────────────────────────────────
+// DATABASE (localStorage)
+// ─────────────────────────────────────────
+const DB = {
+  get users()    { return JSON.parse(localStorage.getItem('mp_users') || '{}'); },
+  setUsers(v)    { localStorage.setItem('mp_users', JSON.stringify(v)); },
+  get sessions() { return JSON.parse(localStorage.getItem('mp_sessions') || '[]'); },
+  setSessions(v) { localStorage.setItem('mp_sessions', JSON.stringify(v)); },
+  get scores()   { return JSON.parse(localStorage.getItem('mp_scores') || '[]'); },
+  setScores(v)   { localStorage.setItem('mp_scores', JSON.stringify(v)); },
+  get apiKey()   { return localStorage.getItem('mp_apikey') || ''; },
+  setApiKey(v)   { localStorage.setItem('mp_apikey', v); },
+  get curUser()  { return localStorage.getItem('mp_cur') || null; },
+  setCurUser(v)  { v ? localStorage.setItem('mp_cur', v) : localStorage.removeItem('mp_cur'); },
 };
 
 // ─────────────────────────────────────────
 // STATE
 // ─────────────────────────────────────────
-let currentMood  = null;
-let activeTab    = 1;
-let gameCleanup  = null;   // function to stop current game
+let currentMood     = null;
+let activeTab       = 1;
+let gameCleanup     = null;
+let detectedMood    = null;
+let lbMode          = 'all';
+let chartInstances  = {};
 
 // ─────────────────────────────────────────
-// PARTICLE BACKGROUND
+// TOAST
 // ─────────────────────────────────────────
-(function initParticles() {
-  const canvas = document.getElementById('particleCanvas');
-  const ctx    = canvas.getContext('2d');
-  let W, H, particles = [];
-
-  const COLORS = ['#f6a623','#5b9bd5','#5dab7f','#e07b54','#9b7ec8'];
-
-  function resize() {
-    W = canvas.width  = window.innerWidth;
-    H = canvas.height = window.innerHeight;
-  }
-  window.addEventListener('resize', resize);
-  resize();
-
-  function mkParticle() {
-    return {
-      x: Math.random() * W,
-      y: Math.random() * H,
-      r: 2 + Math.random() * 4,
-      color: COLORS[Math.floor(Math.random() * COLORS.length)],
-      vx: (Math.random() - .5) * .4,
-      vy: -.2 - Math.random() * .3,
-      alpha: .15 + Math.random() * .25,
-    };
-  }
-
-  for (let i = 0; i < 55; i++) particles.push(mkParticle());
-
-  function draw() {
-    ctx.clearRect(0, 0, W, H);
-    particles.forEach(p => {
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      ctx.fillStyle = p.color;
-      ctx.globalAlpha = p.alpha;
-      ctx.fill();
-      p.x += p.vx;
-      p.y += p.vy;
-      if (p.y + p.r < 0) { Object.assign(p, mkParticle(), { y: H + p.r }); }
-      if (p.x < -10 || p.x > W + 10) { Object.assign(p, mkParticle()); }
-    });
-    ctx.globalAlpha = 1;
-    requestAnimationFrame(draw);
-  }
-  draw();
-})();
+function toast(msg, type = 'info') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show ' + type;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.className = 'toast'; }, 3000);
+}
 
 // ─────────────────────────────────────────
 // PAGE NAVIGATION
 // ─────────────────────────────────────────
+const NAV_PAGES = ['page-history','page-analytics','page-leaderboard','page-mood'];
+
 function showPage(id) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('.page').forEach(p => {
+    p.classList.remove('active');
+    p.classList.remove('nav-offset');
+  });
+  const pg = document.getElementById(id);
+  pg.classList.add('active');
+  if (DB.curUser && NAV_PAGES.includes(id)) pg.classList.add('nav-offset');
+
+  // Update nav active state
+  document.querySelectorAll('.nav-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.page === id);
+  });
+
+  // Trigger page init
+  if (id === 'page-history')    renderHistory();
+  if (id === 'page-analytics')  initAnalytics();
+  if (id === 'page-leaderboard') renderLeaderboard();
 }
 
-function goLanding() {
+// ─────────────────────────────────────────
+// AUTH
+// ─────────────────────────────────────────
+function hashPw(user, pw) { return btoa(user + ':' + pw + ':mp2024'); }
+
+function login(username, password) {
+  const users = DB.users;
+  if (!users[username]) { toast('User not found', 'error'); return; }
+  if (users[username].pw !== hashPw(username, password)) { toast('Wrong password', 'error'); return; }
+  DB.setCurUser(username);
+  onLoggedIn();
+}
+
+function register(username, password, confirm) {
+  if (!username.trim()) { toast('Enter a username', 'error'); return; }
+  if (username.length < 3) { toast('Username must be 3+ chars', 'error'); return; }
+  if (password.length < 4) { toast('Password must be 4+ chars', 'error'); return; }
+  if (password !== confirm) { toast('Passwords do not match', 'error'); return; }
+  const users = DB.users;
+  if (users[username]) { toast('Username taken', 'error'); return; }
+  users[username] = { pw: hashPw(username, password), createdAt: Date.now() };
+  DB.setUsers(users);
+  DB.setCurUser(username);
+  toast('Account created! 🎉', 'success');
+  onLoggedIn();
+}
+
+function logout() {
   stopGame();
-  document.getElementById('yt-player').src = '';
+  DB.setCurUser(null);
   document.body.className = '';
+  document.getElementById('app-nav').classList.add('hidden');
+  document.getElementById('spotifyPlayer').src = '';
   showPage('page-landing');
 }
 
-function goMoodSelect() {
-  stopGame();
-  document.getElementById('yt-player').src = '';
+function onLoggedIn() {
+  const user = DB.curUser;
+  document.getElementById('nav-user-badge').textContent = '👤 ' + user;
+  document.getElementById('mood-greeting').textContent = 'Hey ' + user + ', how are you feeling?';
+  document.getElementById('app-nav').classList.remove('hidden');
   showPage('page-mood');
 }
 
-function selectMood(mood) {
-  const data = MOOD_DATA[mood];
+// ─────────────────────────────────────────
+// AI MOOD DETECTION
+// ─────────────────────────────────────────
+async function detectMoodAI() {
+  const text = document.getElementById('ai-input').value.trim();
+  if (!text) { toast('Please describe how you feel', 'error'); return; }
+  const apiKey = DB.apiKey;
+  if (!apiKey) { toast('Add your Anthropic API key in ⚙️ Settings', 'error'); return; }
+
+  const btn  = document.getElementById('btn-ai-detect');
+  const bTxt = document.getElementById('ai-btn-text');
+  btn.disabled = true;
+  bTxt.textContent = '🔍 Detecting…';
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 200,
+        system: 'You are a mood detection assistant. Analyze the user\'s text and return ONLY valid JSON (no markdown, no code blocks): {"mood":"<happy|sad|stressed|bored|tired>","confidence":<0-100>,"reason":"<one sentence>"}',
+        messages: [{ role: 'user', content: text }],
+      }),
+    });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || 'API error ' + res.status); }
+    const data = await res.json();
+    let raw = data.content.map(c => c.text || '').join('').trim();
+    // Strip any markdown code fences
+    raw = raw.replace(/```[a-z]*\n?/g,'').replace(/```/g,'').trim();
+    const parsed = JSON.parse(raw);
+    if (!MOOD_META[parsed.mood]) throw new Error('Unknown mood: ' + parsed.mood);
+    detectedMood = parsed.mood;
+    const meta = MOOD_META[parsed.mood];
+    document.getElementById('ai-result-emoji').textContent = meta.emoji;
+    document.getElementById('ai-result-name').textContent  = meta.label;
+    document.getElementById('ai-result-reason').textContent= parsed.reason;
+    document.getElementById('ai-result-conf').textContent  = `Confidence: ${parsed.confidence}%`;
+    document.getElementById('ai-result').classList.remove('hidden');
+    toast('Mood detected: ' + meta.label + ' ' + meta.emoji, 'success');
+  } catch (err) {
+    toast('Detection failed: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    bTxt.textContent = '✨ Detect My Mood';
+  }
+}
+
+// ─────────────────────────────────────────
+// SELECT MOOD & START SESSION
+// ─────────────────────────────────────────
+function selectMood(mood, method = 'manual', aiReason = '') {
   currentMood = mood;
-  activeTab = 1;
+  const meta = MOOD_META[mood];
+  const games = MOOD_GAMES[mood];
 
-  // Body accent class
-  document.body.className = 'm-' + mood;
+  // Record session
+  const sessions = DB.sessions;
+  sessions.push({ username: DB.curUser, mood, timestamp: Date.now(), method, aiReason });
+  DB.setSessions(sessions);
 
-  // Mood chip
-  document.getElementById('mood-chip').textContent = data.label;
+  // Apply accent
+  document.body.className = 'mood-' + mood;
+
+  // Badge
+  document.getElementById('activeMoodBadge').textContent = meta.emoji + ' ' + meta.label;
 
   // Tab labels
-  document.getElementById('tab-btn-1').textContent = data.tabLabels[0];
-  document.getElementById('tab-btn-2').textContent = data.tabLabels[1];
-  document.getElementById('tab-btn-1').classList.add('active');
-  document.getElementById('tab-btn-2').classList.remove('active');
+  document.getElementById('tab1Btn').textContent = games.labels[0];
+  document.getElementById('tab2Btn').textContent = games.labels[1];
+  document.getElementById('tab1Btn').classList.add('active');
+  document.getElementById('tab2Btn').classList.remove('active');
 
-  // Music
-  document.getElementById('yt-player').src = data.ytSrc;
+  // Spotify
+  document.getElementById('spotifyPlayer').src =
+    `https://open.spotify.com/embed/playlist/${meta.spotify}?utm_source=generator&theme=0`;
 
   // Load game 1
-  loadGame(data.games[0]);
+  activeTab = 1;
+  loadGame(games.games[0]);
 
   showPage('page-games');
 }
 
 function switchTab(n) {
   activeTab = n;
-  document.getElementById('tab-btn-1').classList.toggle('active', n === 1);
-  document.getElementById('tab-btn-2').classList.toggle('active', n === 2);
+  document.getElementById('tab1Btn').classList.toggle('active', n === 1);
+  document.getElementById('tab2Btn').classList.toggle('active', n === 2);
   stopGame();
-  loadGame(MOOD_DATA[currentMood].games[n - 1]);
+  loadGame(MOOD_GAMES[currentMood].games[n - 1]);
 }
 
 // ─────────────────────────────────────────
-// DOM READY — attach all event listeners
+// SCORE RECORDING
 // ─────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', function () {
-
-  document.getElementById('btn-start').addEventListener('click', function () {
-    showPage('page-mood');
-  });
-
-  document.getElementById('btn-back-landing').addEventListener('click', goLanding);
-  document.getElementById('btn-back-mood').addEventListener('click', goMoodSelect);
-
-  document.querySelectorAll('.mood-pill').forEach(function (pill) {
-    pill.addEventListener('click', function () {
-      selectMood(pill.dataset.mood);
-    });
-  });
-
-  document.getElementById('tab-btn-1').addEventListener('click', function () { switchTab(1); });
-  document.getElementById('tab-btn-2').addEventListener('click', function () { switchTab(2); });
-});
+function recordScore(game, score) {
+  const user = DB.curUser;
+  if (!user || score <= 0) return;
+  const s = DB.scores;
+  s.push({ username: user, game, score, timestamp: Date.now() });
+  DB.setScores(s);
+}
 
 // ─────────────────────────────────────────
 // GAME ENGINE
@@ -181,436 +243,545 @@ document.addEventListener('DOMContentLoaded', function () {
 function stopGame() {
   if (typeof gameCleanup === 'function') { gameCleanup(); gameCleanup = null; }
 }
-
 function loadGame(name) {
   stopGame();
-  const area = document.getElementById('game-area');
-  area.innerHTML = '';
-  GAMES[name](area);
+  const vp = document.getElementById('gameViewport');
+  vp.innerHTML = '';
+  GAMES[name](vp);
 }
 
 const GAMES = {};
 
-/* ──────────────────────────────────────
-   1. REACTION SPEED
-────────────────────────────────────── */
-GAMES.reactionSpeed = function (area) {
+/* ── 1. REACTION SPEED ── */
+GAMES.reactionSpeed = function(vp) {
   let state = 'idle', t0 = 0, timer = null;
-
-  area.innerHTML = `
-    <div class="g-title">Reaction Speed</div>
-    <div class="g-sub">Click the box the moment it turns colour!</div>
-    <div id="rx-box">Click to Start</div>
-    <div id="rx-score" class="g-score"></div>`;
-
-  const box = area.querySelector('#rx-box');
-  const sc  = area.querySelector('#rx-score');
-
-  box.addEventListener('click', function () {
+  vp.innerHTML = `<div class="game-title">Reaction Speed</div><div class="game-subtitle">Click when the box turns yellow!</div><div id="reaction-box">Click to Start</div><div class="game-score" id="rx-score"></div>`;
+  const box = vp.querySelector('#reaction-box');
+  const sc  = vp.querySelector('#rx-score');
+  box.addEventListener('click', function() {
     if (state === 'idle' || state === 'result') {
-      state = 'waiting';
-      box.textContent = 'Wait for it…';
-      box.className = 'state-wait';
-      sc.textContent = '';
-      const delay = 1500 + Math.random() * 3000;
-      timer = setTimeout(function () {
-        state = 'go';
-        box.textContent = 'NOW! Click!';
-        box.className = 'state-go';
-        t0 = Date.now();
-      }, delay);
-    } else if (state === 'waiting') {
-      clearTimeout(timer);
-      state = 'result';
-      box.textContent = '😬 Too early! Click to retry';
-      box.className = '';
-      sc.textContent = 'Too soon!';
+      state = 'wait'; box.textContent = 'Wait…'; box.className = 'wait'; sc.textContent = '';
+      timer = setTimeout(function() {
+        state = 'go'; box.textContent = 'NOW!'; box.className = 'go'; t0 = Date.now();
+      }, 1500 + Math.random() * 3000);
+    } else if (state === 'wait') {
+      clearTimeout(timer); state = 'result';
+      box.textContent = '😬 Too early! Click to retry'; box.className = '';
     } else if (state === 'go') {
-      const ms = Date.now() - t0;
-      state = 'result';
-      box.className = '';
-      box.textContent = ms + ' ms — Click to retry';
-      const rank = ms < 200 ? '⚡ Lightning fast!' : ms < 350 ? '🔥 Speedy!' : ms < 500 ? '👍 Not bad' : '🐢 Keep practising';
-      sc.textContent = rank;
+      const ms = Date.now() - t0; state = 'result';
+      box.className = ''; box.textContent = ms + ' ms — Click to retry';
+      const pts = Math.max(1000 - ms, 0);
+      const rank = ms < 200 ? '⚡ Lightning!' : ms < 350 ? '🔥 Fast!' : ms < 500 ? '👍 Good' : '🐢 Try again';
+      sc.textContent = rank + ' (Score: ' + Math.round(pts) + ')';
+      recordScore('reactionSpeed', Math.round(pts));
     }
   });
-
-  gameCleanup = function () { clearTimeout(timer); };
+  gameCleanup = function() { clearTimeout(timer); };
 };
 
-/* ──────────────────────────────────────
-   2. COLOR MATCH
-────────────────────────────────────── */
-GAMES.colorMatch = function (area) {
+/* ── 2. COLOR MATCH ── */
+GAMES.colorMatch = function(vp) {
   const COLORS = [
-    { name: 'Red',    hex: '#e74c3c' },
-    { name: 'Blue',   hex: '#3498db' },
-    { name: 'Green',  hex: '#2ecc71' },
-    { name: 'Yellow', hex: '#f1c40f' },
-    { name: 'Purple', hex: '#9b59b6' },
-    { name: 'Orange', hex: '#e67e22' },
+    {name:'Red',hex:'#e74c3c'},{name:'Blue',hex:'#3498db'},{name:'Green',hex:'#2ecc71'},
+    {name:'Yellow',hex:'#f1c40f'},{name:'Purple',hex:'#9b59b6'},{name:'Orange',hex:'#e67e22'},
   ];
   let score = 0, lives = 3, target;
-
-  area.innerHTML = `
-    <div class="g-title">Color Match</div>
-    <div class="g-sub">Tap the circle that matches the colour above</div>
-    <div class="cm-target" id="cm-target"></div>
-    <div class="cm-options" id="cm-opts">
-      <button></button><button></button><button></button><button></button>
-    </div>
-    <div class="g-score" id="cm-score">Score: 0  ❤️ 3</div>`;
-
-  const tgt  = area.querySelector('#cm-target');
-  const opts = area.querySelectorAll('#cm-opts button');
-  const sc   = area.querySelector('#cm-score');
-
+  vp.innerHTML = `<div class="game-title">Color Match</div><div class="game-subtitle">Tap the circle matching the colour above</div><div class="color-match-target" id="cm-t"></div><div class="color-match-options" id="cm-o"><button></button><button></button><button></button><button></button></div><div class="game-score" id="cm-s">Score: 0  ❤️ 3</div>`;
+  const tgt  = vp.querySelector('#cm-t');
+  const opts = vp.querySelectorAll('#cm-o button');
+  const sc   = vp.querySelector('#cm-s');
   function pick() {
-    const pool = [...COLORS].sort(function () { return Math.random() - .5; }).slice(0, 4);
-    target = pool[Math.floor(Math.random() * 4)];
+    const pool = [...COLORS].sort(()=>Math.random()-.5).slice(0,4);
+    target = pool[Math.floor(Math.random()*4)];
     tgt.style.background = target.hex;
-    opts.forEach(function (btn, i) {
-      btn.style.background = pool[i].hex;
-      btn.dataset.color = pool[i].name;
-    });
-    sc.textContent = 'Score: ' + score + '  ❤️ ' + lives;
+    opts.forEach(function(b,i){b.style.background=pool[i].hex;b.dataset.c=pool[i].name;});
+    sc.textContent = 'Score: '+score+'  ❤️ '+lives;
   }
-
-  opts.forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      if (lives <= 0) return;
-      if (btn.dataset.color === target.name) {
-        score++;
-        sc.textContent = '✅ Correct! Score: ' + score;
-      } else {
-        lives--;
-        if (lives <= 0) { sc.textContent = '💀 Game Over — refresh tab to restart'; return; }
-        sc.textContent = '❌ Nope! Lives: ' + lives;
-      }
-      setTimeout(pick, 550);
+  opts.forEach(function(b){
+    b.addEventListener('click', function(){
+      if(lives<=0) return;
+      if(b.dataset.c===target.name){ score++; sc.textContent='✅ Correct!'; }
+      else{ lives--; if(lives<=0){sc.textContent='💀 Game Over! Score: '+score; recordScore('colorMatch',score); return;} sc.textContent='❌ Nope! Lives: '+lives; }
+      setTimeout(pick,550);
     });
   });
-
   pick();
 };
 
-/* ──────────────────────────────────────
-   3. MEMORY MATCH
-────────────────────────────────────── */
-GAMES.memoryMatch = function (area) {
+/* ── 3. MEMORY MATCH ── */
+GAMES.memoryMatch = function(vp) {
   const ICONS = ['🌸','🦋','🌙','⭐','🍀','🌈','🎵','🦄'];
-  const deck  = [...ICONS, ...ICONS].sort(function () { return Math.random() - .5; });
-  let flipped = [], matched = 0, locked = false, moves = 0;
-
-  area.innerHTML = `
-    <div class="g-title">Memory Match</div>
-    <div class="g-sub">Find all 8 matching pairs</div>
-    <div class="mm-grid" id="mm-grid"></div>
-    <div class="g-score" id="mm-score">Moves: 0</div>`;
-
-  const grid = area.querySelector('#mm-grid');
-  const sc   = area.querySelector('#mm-score');
-
-  deck.forEach(function (icon, i) {
-    const card = document.createElement('div');
-    card.className = 'mm-card';
-    card.innerHTML = '<div class="mm-inner"><div class="mm-front">?</div><div class="mm-back">' + icon + '</div></div>';
-    card.dataset.icon = icon;
-
-    card.addEventListener('click', function () {
-      if (locked || card.classList.contains('flipped') || card.dataset.done) return;
-      card.classList.add('flipped');
-      flipped.push(card);
-
-      if (flipped.length === 2) {
-        locked = true;
-        moves++;
-        sc.textContent = 'Moves: ' + moves;
-        const [a, b] = flipped;
-        if (a.dataset.icon === b.dataset.icon) {
-          a.dataset.done = b.dataset.done = '1';
-          matched++;
-          flipped = [];
-          locked = false;
-          if (matched === ICONS.length) sc.textContent = '🎉 Solved in ' + moves + ' moves!';
+  const deck  = [...ICONS,...ICONS].sort(()=>Math.random()-.5);
+  let flipped=[], matched=0, locked=false, moves=0;
+  vp.innerHTML = `<div class="game-title">Memory Match</div><div class="game-subtitle">Find all 8 matching pairs</div><div class="memory-grid" id="mm-g"></div><div class="game-score" id="mm-s">Moves: 0</div>`;
+  const grid = vp.querySelector('#mm-g');
+  const sc   = vp.querySelector('#mm-s');
+  deck.forEach(function(icon,i){
+    const c = document.createElement('div');
+    c.className='mem-card';
+    c.innerHTML='<div class="mem-card-inner"><div class="mem-card-front">?</div><div class="mem-card-back">'+icon+'</div></div>';
+    c.dataset.icon=icon;
+    c.addEventListener('click', function(){
+      if(locked||c.classList.contains('flipped')||c.dataset.done) return;
+      c.classList.add('flipped'); flipped.push(c);
+      if(flipped.length===2){
+        locked=true; moves++; sc.textContent='Moves: '+moves;
+        const[a,b]=flipped;
+        if(a.dataset.icon===b.dataset.icon){
+          a.dataset.done=b.dataset.done='1'; matched++; flipped=[]; locked=false;
+          if(matched===ICONS.length){ sc.textContent='🎉 Solved in '+moves+' moves!'; recordScore('memoryMatch',Math.max(200-moves,10)); }
         } else {
-          setTimeout(function () {
-            a.classList.remove('flipped');
-            b.classList.remove('flipped');
-            flipped = [];
-            locked = false;
-          }, 900);
+          setTimeout(function(){a.classList.remove('flipped');b.classList.remove('flipped');flipped=[];locked=false;},900);
         }
       }
     });
-
-    grid.appendChild(card);
+    grid.appendChild(c);
   });
 };
 
-/* ──────────────────────────────────────
-   4. BUBBLE POP
-────────────────────────────────────── */
-GAMES.bubblePop = function (area) {
-  let score = 0, spawnId = null;
-  const COLORS = ['#f6a623','#5b9bd5','#5dab7f','#e07b54','#9b7ec8','#f48fb1'];
-  const ICONS  = ['🫧','✨','💫','🌟','🎈'];
-
-  area.innerHTML = `
-    <div class="g-title">Bubble Pop</div>
-    <div class="g-sub">Pop them before they float away!</div>
-    <div class="g-score" id="bp-score">Score: 0</div>
-    <div id="bubble-arena"></div>`;
-
-  const arena = area.querySelector('#bubble-arena');
-  const sc    = area.querySelector('#bp-score');
-
-  function spawn() {
-    const size = 42 + Math.random() * 38;
-    const b    = document.createElement('div');
-    b.className = 'bubble';
-    b.style.cssText = [
-      'width:'  + size + 'px',
-      'height:' + size + 'px',
-      'left:'   + (4 + Math.random() * 80) + '%',
-      'background:' + COLORS[Math.floor(Math.random() * COLORS.length)],
-      'animation-duration:' + (2.8 + Math.random() * 3) + 's',
-    ].join(';');
-    b.textContent = ICONS[Math.floor(Math.random() * ICONS.length)];
-
-    b.addEventListener('click', function (e) {
-      e.stopPropagation();
-      score++;
-      sc.textContent = 'Score: ' + score;
-      b.remove();
-    });
-    b.addEventListener('animationend', function () { b.remove(); });
+/* ── 4. BUBBLE POP ── */
+GAMES.bubblePop = function(vp) {
+  let score=0, spawnId=null;
+  const COLORS=['#f7c948','#64b5f6','#81c784','#ff8a65','#ce93d8','#7e91ff'];
+  const ICONS=['🫧','✨','💫','🌟','🎈'];
+  vp.innerHTML = `<div class="game-title">Bubble Pop</div><div class="game-subtitle">Pop them before they escape! 30s challenge</div><div class="game-score" id="bp-s">Score: 0</div><div id="bubble-arena"></div>`;
+  const arena=vp.querySelector('#bubble-arena');
+  const sc   =vp.querySelector('#bp-s');
+  let timeLeft=30, timerEl=null;
+  function spawn(){
+    const sz=42+Math.random()*36;
+    const b=document.createElement('div');
+    b.className='bubble';
+    b.style.cssText='width:'+sz+'px;height:'+sz+'px;left:'+(5+Math.random()*82)+'%;background:'+COLORS[Math.floor(Math.random()*COLORS.length)]+';animation-duration:'+(2.5+Math.random()*2.5)+'s';
+    b.textContent=ICONS[Math.floor(Math.random()*ICONS.length)];
+    b.addEventListener('click',function(e){e.stopPropagation();score++;sc.textContent='Score: '+score+' | Time: '+timeLeft+'s';b.remove();});
+    b.addEventListener('animationend',function(){b.remove();});
     arena.appendChild(b);
   }
-
-  spawn();
-  spawnId = setInterval(spawn, 1100);
-  gameCleanup = function () { clearInterval(spawnId); };
+  spawn(); spawnId=setInterval(spawn,1000);
+  timerEl=setInterval(function(){
+    timeLeft--;
+    sc.textContent='Score: '+score+' | Time: '+timeLeft+'s';
+    if(timeLeft<=0){clearInterval(spawnId);clearInterval(timerEl);sc.textContent='🎯 Final: '+score+' pops!';recordScore('bubblePop',score);}
+  },1000);
+  gameCleanup=function(){clearInterval(spawnId);clearInterval(timerEl);};
 };
 
-/* ──────────────────────────────────────
-   5. BREATHING CLICK
-────────────────────────────────────── */
-GAMES.breathingClick = function (area) {
-  const PHASES = [
-    { label: 'Breathe In',  secs: 4, expand: true  },
-    { label: 'Hold',        secs: 2, expand: true  },
-    { label: 'Breathe Out', secs: 4, expand: false },
-  ];
-  let running = false, phaseIdx = 0, countdown = 0, cycles = 0, ivl = null;
-
-  area.innerHTML = `
-    <div class="g-title">Breathing Game</div>
-    <div class="g-sub">Follow the orb — click to begin</div>
-    <div id="breath-orb">Tap to start</div>
-    <div class="g-score" id="br-score"></div>`;
-
-  const orb = area.querySelector('#breath-orb');
-  const sc  = area.querySelector('#br-score');
-
-  function nextPhase() {
-    const p = PHASES[phaseIdx % PHASES.length];
-    orb.textContent = p.label;
-    orb.className = p.expand ? 'expand' : '';
-    countdown = p.secs;
-    sc.textContent = p.label + ' — ' + countdown + 's  |  Cycles: ' + cycles;
-
-    ivl = setInterval(function () {
-      countdown--;
-      sc.textContent = p.label + ' — ' + countdown + 's  |  Cycles: ' + cycles;
-      if (countdown <= 0) {
+/* ── 5. BREATHING CLICK ── */
+GAMES.breathingClick = function(vp) {
+  const PHASES=[{name:'Breathe In',secs:4,expand:true},{name:'Hold',secs:2,expand:true},{name:'Breathe Out',secs:4,expand:false}];
+  let running=false,pi=0,cd=0,cycles=0,ivl=null;
+  vp.innerHTML=`<div class="game-title">Breathing Game</div><div class="game-subtitle">Follow the circle — tap to begin</div><div id="breath-circle">Tap to start</div><div class="game-score" id="br-s"></div>`;
+  const orb=vp.querySelector('#breath-circle');
+  const sc =vp.querySelector('#br-s');
+  function nextPhase(){
+    const p=PHASES[pi%PHASES.length];
+    orb.textContent=p.name; orb.className=p.expand?'expand':''; cd=p.secs;
+    sc.textContent=p.name+' — '+cd+'s  |  Cycles: '+cycles;
+    ivl=setInterval(function(){
+      cd--; sc.textContent=p.name+' — '+cd+'s  |  Cycles: '+cycles;
+      if(cd<=0){
         clearInterval(ivl);
-        if (p.label === 'Breathe Out') { cycles++; }
-        phaseIdx++;
-        if (cycles >= 5) {
-          orb.textContent = '🌟 5 Cycles!';
-          orb.className = '';
-          sc.textContent = 'Wonderful! You completed 5 breath cycles.';
-          running = false;
-          return;
-        }
+        if(p.name==='Breathe Out'){cycles++; recordScore('breathingClick',cycles*20);}
+        pi++;
+        if(cycles>=5){orb.textContent='🌟 5 Cycles!';orb.className='';sc.textContent='Amazing! You completed 5 breath cycles.';running=false;return;}
         nextPhase();
       }
-    }, 1000);
+    },1000);
   }
-
-  orb.addEventListener('click', function () {
-    if (!running) { running = true; nextPhase(); }
-  });
-
-  gameCleanup = function () { clearInterval(ivl); };
+  orb.addEventListener('click',function(){if(!running){running=true;nextPhase();}});
+  gameCleanup=function(){clearInterval(ivl);};
 };
 
-/* ──────────────────────────────────────
-   6. SLIDING PUZZLE (3×3)
-────────────────────────────────────── */
-GAMES.slidingPuzzle = function (area) {
-  const EMOJIS = ['1️⃣','2️⃣','3️⃣','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣'];
-  let tiles = [...EMOJIS, null], moves = 0;
-
-  function shuffle() {
-    for (let i = tiles.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
-    }
-    moves = 0;
-  }
-
-  area.innerHTML = `
-    <div class="g-title">Sliding Puzzle</div>
-    <div class="g-sub">Arrange 1–8 in order (row by row)</div>
-    <div class="pz-grid" id="pz-grid"></div>
-    <div class="g-score" id="pz-score">Moves: 0</div>
-    <button class="g-btn" id="pz-shuffle">Shuffle</button>`;
-
-  const grid = area.querySelector('#pz-grid');
-  const sc   = area.querySelector('#pz-score');
-
-  function render() {
-    grid.innerHTML = '';
-    tiles.forEach(function (t, i) {
-      const tile = document.createElement('div');
-      tile.className = 'pz-tile ' + (t === null ? 'empty' : 'filled');
-      tile.textContent = t || '';
-      tile.addEventListener('click', function () { move(i); });
-      grid.appendChild(tile);
+/* ── 6. SLIDING PUZZLE ── */
+GAMES.slidingPuzzle = function(vp) {
+  const EM=['1️⃣','2️⃣','3️⃣','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣'];
+  let tiles=[...EM,null], moves=0;
+  function shuffle(){for(let i=tiles.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[tiles[i],tiles[j]]=[tiles[j],tiles[i]];}moves=0;}
+  vp.innerHTML=`<div class="game-title">Sliding Puzzle</div><div class="game-subtitle">Arrange 1–8 in order</div><div class="puzzle-grid" id="pz-g"></div><div class="game-score" id="pz-s">Moves: 0</div><button class="game-btn" id="pz-r">Shuffle</button>`;
+  const grid=vp.querySelector('#pz-g');
+  const sc  =vp.querySelector('#pz-s');
+  function render(){
+    grid.innerHTML='';
+    tiles.forEach(function(t,i){
+      const d=document.createElement('div');
+      d.className='puzzle-tile '+(t===null?'empty':'');
+      d.textContent=t||'';
+      d.addEventListener('click',function(){
+        const blank=tiles.indexOf(null);
+        const row=n=>Math.floor(n/3), col=n=>n%3;
+        if((row(i)===row(blank)&&Math.abs(col(i)-col(blank))===1)||(col(i)===col(blank)&&Math.abs(row(i)-row(blank))===1)){
+          [tiles[i],tiles[blank]]=[tiles[blank],tiles[i]]; moves++;
+          sc.textContent='Moves: '+moves; render();
+          if(tiles.every((t,i)=>t===[...EM,null][i])){sc.textContent='🎉 Solved in '+moves+' moves!';recordScore('slidingPuzzle',Math.max(200-moves,5));}
+        }
+      });
+      grid.appendChild(d);
     });
   }
+  vp.querySelector('#pz-r').addEventListener('click',function(){shuffle();render();sc.textContent='Moves: 0';});
+  shuffle(); render();
+};
 
-  function move(i) {
-    const blank = tiles.indexOf(null);
-    const row = function (n) { return Math.floor(n / 3); };
-    const col = function (n) { return n % 3; };
-    const adj = (row(i) === row(blank) && Math.abs(col(i) - col(blank)) === 1) ||
-                (col(i) === col(blank) && Math.abs(row(i) - row(blank)) === 1);
-    if (!adj) return;
-    [tiles[i], tiles[blank]] = [tiles[blank], tiles[i]];
-    moves++;
-    sc.textContent = 'Moves: ' + moves;
-    render();
-    const goal = [...EMOJIS, null];
-    if (tiles.every(function (t, i) { return t === goal[i]; })) {
-      sc.textContent = '🎉 Solved in ' + moves + ' moves!';
+/* ── 7. QUICK TAP ── */
+GAMES.quickTap = function(vp) {
+  let score=0,timeLeft=10,ivl=null,running=false;
+  vp.innerHTML=`<div class="game-title">Quick Tap</div><div class="game-subtitle">Tap as fast as you can in 10 seconds!</div><div class="game-score" id="qt-s">Score: 0 · Time: 10s</div><div id="tap-target">TAP!</div><button class="game-btn" id="qt-start">Start</button>`;
+  const tgt  =vp.querySelector('#tap-target');
+  const sc   =vp.querySelector('#qt-s');
+  const startB=vp.querySelector('#qt-start');
+  tgt.addEventListener('click',function(){
+    if(!running) return;
+    score++; sc.textContent='Score: '+score+' · Time: '+timeLeft+'s';
+  });
+  startB.addEventListener('click',function(){
+    score=0;timeLeft=10;running=true;startB.disabled=true;
+    sc.textContent='Score: 0 · Time: 10s';
+    ivl=setInterval(function(){
+      timeLeft--; sc.textContent='Score: '+score+' · Time: '+timeLeft+'s';
+      if(timeLeft<=0){clearInterval(ivl);running=false;sc.textContent='🎯 Final: '+score+' taps!';recordScore('quickTap',score);startB.disabled=false;startB.textContent='Play Again';}
+    },1000);
+  });
+  gameCleanup=function(){clearInterval(ivl);};
+};
+
+/* ── 8. RELAX RHYTHM ── */
+GAMES.relaxRhythm = function(vp) {
+  const TOTAL=8; let clicks=0,running=false,ivl=null;
+  vp.innerHTML=`<div class="game-title">Relax Rhythm</div><div class="game-subtitle">Click on every glow — follow the pulse</div><div id="rhythm-ring">Press Begin</div><div class="rhythm-dots" id="rh-d"></div><div class="game-score" id="rh-s">0 / ${TOTAL}</div><button class="game-btn" id="rh-start">Begin</button>`;
+  const ring =vp.querySelector('#rhythm-ring');
+  const dots =vp.querySelector('#rh-d');
+  const sc   =vp.querySelector('#rh-s');
+  const startB=vp.querySelector('#rh-start');
+  for(let i=0;i<TOTAL;i++){const d=document.createElement('div');d.className='rhythm-dot';dots.appendChild(d);}
+  function pulse(){ring.classList.add('pulse');ring.textContent='Tap ✨';setTimeout(function(){ring.classList.remove('pulse');ring.textContent='Wait…';},650);}
+  ring.addEventListener('click',function(){
+    if(!running) return;
+    clicks++; sc.textContent=clicks+' / '+TOTAL;
+    dots.querySelectorAll('.rhythm-dot')[clicks-1]?.classList.add('lit');
+    if(clicks>=TOTAL){clearInterval(ivl);running=false;ring.textContent='🌙 Zen!';sc.textContent='Perfect rhythm complete!';recordScore('relaxRhythm',TOTAL*10);startB.disabled=false;startB.textContent='Again';}
+  });
+  startB.addEventListener('click',function(){
+    clicks=0;running=true;dots.querySelectorAll('.rhythm-dot').forEach(d=>d.classList.remove('lit'));
+    sc.textContent='0 / '+TOTAL;startB.disabled=true;clearInterval(ivl);ivl=setInterval(pulse,1800);pulse();
+  });
+  gameCleanup=function(){clearInterval(ivl);};
+};
+
+// ─────────────────────────────────────────
+// HISTORY
+// ─────────────────────────────────────────
+function renderHistory() {
+  const user   = DB.curUser;
+  const filter = document.getElementById('history-filter').value;
+  let items = DB.sessions
+    .filter(s => s.username === user && (filter === 'all' || s.mood === filter))
+    .slice().reverse();
+
+  const list = document.getElementById('history-list');
+  if (!items.length) {
+    list.innerHTML = '<div class="history-empty">No sessions yet. Start playing! 🎮</div>';
+    return;
+  }
+
+  // Get scores for each session (by timestamp proximity)
+  list.innerHTML = items.map(function(s) {
+    const meta = MOOD_META[s.mood];
+    const dt   = new Date(s.timestamp);
+    const dateStr = dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) + ' · ' + dt.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+    const reason = s.aiReason ? `<div style="font-size:.75rem;color:var(--muted);margin-top:3px">💬 ${s.aiReason}</div>` : '';
+    return `<div class="history-item">
+      <div class="hi-emoji">${meta.emoji}</div>
+      <div class="hi-info">
+        <div class="hi-mood">${meta.label}</div>
+        <div class="hi-date">${dateStr}</div>
+        ${reason}
+      </div>
+      <div>
+        <span class="hi-badge ${s.method}">${s.method === 'ai' ? '🤖 AI' : '🖱️ Manual'}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ─────────────────────────────────────────
+// ANALYTICS
+// ─────────────────────────────────────────
+function getStreak(username) {
+  const sessions = DB.sessions.filter(s => s.username === username);
+  if (!sessions.length) return 0;
+  const dates = [...new Set(sessions.map(s => new Date(s.timestamp).toISOString().split('T')[0]))].sort().reverse();
+  const today = new Date().toISOString().split('T')[0];
+  const yesterday = new Date(Date.now()-86400000).toISOString().split('T')[0];
+  if (dates[0] !== today && dates[0] !== yesterday) return 0;
+  let streak = 1;
+  for (let i = 1; i < dates.length; i++) {
+    const diff = (new Date(dates[i-1]) - new Date(dates[i])) / 86400000;
+    if (diff === 1) streak++; else break;
+  }
+  return streak;
+}
+
+function destroyCharts() {
+  Object.values(chartInstances).forEach(c => { try { c.destroy(); } catch(e){} });
+  chartInstances = {};
+}
+
+function initAnalytics() {
+  destroyCharts();
+  const user     = DB.curUser;
+  const sessions = DB.sessions.filter(s => s.username === user);
+  const scores   = DB.scores.filter(s => s.username === user);
+
+  // Fav mood
+  const moodCounts = {};
+  sessions.forEach(s => { moodCounts[s.mood] = (moodCounts[s.mood]||0)+1; });
+  const favMood = Object.entries(moodCounts).sort((a,b)=>b[1]-a[1])[0];
+  const favMeta = favMood ? MOOD_META[favMood[0]] : null;
+
+  // Best score
+  const bestScore = scores.length ? Math.max(...scores.map(s=>s.score)) : 0;
+
+  // Stats grid
+  document.getElementById('stats-grid').innerHTML = [
+    {val: sessions.length,                             label: 'Total Sessions'},
+    {val: favMeta ? favMeta.emoji+' '+favMeta.label : '—', label: 'Favourite Mood'},
+    {val: getStreak(user) + ' 🔥',                    label: 'Day Streak'},
+    {val: bestScore,                                   label: 'Best Score'},
+  ].map(s=>`<div class="stat-card"><div class="stat-value">${s.val}</div><div class="stat-label">${s.label}</div></div>`).join('');
+
+  // Chart 1: Mood donut
+  const moods = Object.keys(MOOD_META);
+  const moodData   = moods.map(m => moodCounts[m]||0);
+  const moodColors = moods.map(m => MOOD_META[m].color);
+  const ctx1 = document.getElementById('chart-mood-donut').getContext('2d');
+  chartInstances.donut = new Chart(ctx1, {
+    type: 'doughnut',
+    data: { labels: moods.map(m=>MOOD_META[m].label+' '+MOOD_META[m].emoji), datasets:[{ data:moodData, backgroundColor:moodColors, borderColor:'rgba(0,0,0,0.2)', borderWidth:2 }] },
+    options: { responsive:true, plugins:{ legend:{ position:'bottom', labels:{ color:'rgba(232,234,246,0.7)', font:{family:'Nunito',size:11} } }, tooltip:{ callbacks:{ label: ctx => ` ${ctx.label}: ${ctx.parsed} sessions` } } }, cutout:'62%' }
+  });
+
+  // Chart 2: Weekly sessions bar
+  const days7 = Array.from({length:7}, (_,i) => {
+    const d = new Date(Date.now() - (6-i)*86400000);
+    return { key: d.toISOString().split('T')[0], label: d.toLocaleDateString('en-US',{weekday:'short'}) };
+  });
+  const weekData = days7.map(d => sessions.filter(s => new Date(s.timestamp).toISOString().split('T')[0]===d.key).length);
+  const ctx2 = document.getElementById('chart-weekly').getContext('2d');
+  chartInstances.weekly = new Chart(ctx2, {
+    type: 'bar',
+    data: { labels: days7.map(d=>d.label), datasets:[{ label:'Sessions', data:weekData, backgroundColor:'rgba(247,201,72,0.6)', borderColor:'#f7c948', borderWidth:1, borderRadius:8 }] },
+    options: { responsive:true, scales:{ x:{ticks:{color:'rgba(232,234,246,0.6)',font:{family:'Nunito'}},grid:{color:'rgba(255,255,255,0.04)'}}, y:{ticks:{color:'rgba(232,234,246,0.6)',font:{family:'Nunito'},stepSize:1},grid:{color:'rgba(255,255,255,0.06)'}} }, plugins:{ legend:{display:false} } }
+  });
+
+  // Chart 3: Game avg scores
+  const gameKeys = Object.keys(GAME_NAMES);
+  const avgScores = gameKeys.map(function(g) {
+    const gs = scores.filter(s=>s.game===g);
+    return gs.length ? Math.round(gs.reduce((a,b)=>a+b.score,0)/gs.length) : 0;
+  });
+  const ctx3 = document.getElementById('chart-games').getContext('2d');
+  chartInstances.games = new Chart(ctx3, {
+    type: 'bar',
+    data: { labels: gameKeys.map(g=>GAME_NAMES[g]), datasets:[{ label:'Avg Score', data:avgScores, backgroundColor:['rgba(247,201,72,.6)','rgba(247,201,72,.5)','rgba(100,181,246,.6)','rgba(100,181,246,.5)','rgba(129,199,132,.6)','rgba(255,138,101,.6)','rgba(255,138,101,.5)','rgba(206,147,216,.6)'], borderRadius:8 }] },
+    options: { responsive:true, indexAxis:'y', scales:{ x:{ticks:{color:'rgba(232,234,246,0.6)',font:{family:'Nunito'}},grid:{color:'rgba(255,255,255,0.06)'}}, y:{ticks:{color:'rgba(232,234,246,0.7)',font:{family:'Nunito',size:11}},grid:{color:'rgba(255,255,255,0.04)'}} }, plugins:{ legend:{display:false} } }
+  });
+}
+
+// ─────────────────────────────────────────
+// LEADERBOARD
+// ─────────────────────────────────────────
+function getLeaderboardData(mode) {
+  const sessions = DB.sessions;
+  const scores   = DB.scores;
+  const users    = DB.users;
+  const curUser  = DB.curUser;
+
+  let filteredScores = scores;
+  let filteredSessions = sessions;
+  if (mode === 'week') {
+    const weekAgo = Date.now() - 7*86400000;
+    filteredScores   = scores.filter(s=>s.timestamp>weekAgo);
+    filteredSessions = sessions.filter(s=>s.timestamp>weekAgo);
+  }
+
+  const data = {};
+  Object.keys(users).forEach(function(u) {
+    const us = filteredScores.filter(s=>s.username===u);
+    const sess = filteredSessions.filter(s=>s.username===u);
+    const moodC = {};
+    sess.forEach(s=>{moodC[s.mood]=(moodC[s.mood]||0)+1;});
+    const fav = Object.entries(moodC).sort((a,b)=>b[1]-a[1])[0];
+    data[u] = {
+      username: u,
+      totalScore: us.reduce((a,b)=>a+b.score,0),
+      gamesPlayed: us.length,
+      favMood: fav ? MOOD_META[fav[0]].emoji : '—',
+      isMe: u === curUser,
+    };
+  });
+
+  return Object.values(data).filter(d=>d.gamesPlayed>0).sort((a,b)=>b.totalScore-a.totalScore);
+}
+
+function renderLeaderboard() {
+  const data = getLeaderboardData(lbMode);
+  const table = document.getElementById('lb-table');
+  if (!data.length) {
+    table.innerHTML = '<div class="lb-empty">No scores yet — play some games to appear here! 🎮</div>';
+    return;
+  }
+  const medals = ['🥇','🥈','🥉'];
+  const classes = ['gold','silver','bronze'];
+  table.innerHTML = data.map(function(d,i) {
+    const rankDisp = i<3 ? `<span class="lb-rank ${classes[i]}">${medals[i]}</span>` : `<span class="lb-rank">#${i+1}</span>`;
+    const letter = d.username.charAt(0).toUpperCase();
+    return `<div class="lb-row${d.isMe?' me':''}">
+      ${rankDisp}
+      <div class="lb-avatar">${letter}</div>
+      <div class="lb-info">
+        <div class="lb-username">${d.username}${d.isMe?' (you)':''}</div>
+        <div class="lb-sub">🕹️ ${d.gamesPlayed} games · ${d.favMood} fav mood</div>
+      </div>
+      <div>
+        <div class="lb-score">${d.totalScore.toLocaleString()}</div>
+        <div class="lb-score-sub">total score</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ─────────────────────────────────────────
+// BACKGROUND ORBS
+// ─────────────────────────────────────────
+(function initOrbs() {
+  const container = document.getElementById('bgOrbs');
+  const palette   = ['#f7c948','#64b5f6','#81c784','#ff8a65','#ce93d8','#7e91ff'];
+  for (let i = 0; i < 7; i++) {
+    const orb  = document.createElement('div');
+    orb.className = 'orb';
+    const size = 220 + Math.random()*300;
+    orb.style.cssText = `width:${size}px;height:${size}px;left:${Math.random()*100}%;top:${Math.random()*100}%;background:${palette[i%palette.length]};animation-delay:${Math.random()*8}s;animation-duration:${14+Math.random()*12}s;`;
+    container.appendChild(orb);
+  }
+})();
+
+// ─────────────────────────────────────────
+// DOM READY — BIND ALL EVENTS
+// ─────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+
+  // ── Landing ──
+  document.getElementById('btn-landing-start').addEventListener('click', function() {
+    if (DB.curUser) showPage('page-mood'); else showPage('page-auth');
+  });
+
+  // ── Auth tabs ──
+  document.getElementById('auth-tab-login').addEventListener('click', function() {
+    this.classList.add('active');
+    document.getElementById('auth-tab-register').classList.remove('active');
+    document.getElementById('auth-form-login').classList.remove('hidden');
+    document.getElementById('auth-form-register').classList.add('hidden');
+  });
+  document.getElementById('auth-tab-register').addEventListener('click', function() {
+    this.classList.add('active');
+    document.getElementById('auth-tab-login').classList.remove('active');
+    document.getElementById('auth-form-register').classList.remove('hidden');
+    document.getElementById('auth-form-login').classList.add('hidden');
+  });
+  document.getElementById('switch-to-register').addEventListener('click', function() { document.getElementById('auth-tab-register').click(); });
+  document.getElementById('switch-to-login').addEventListener('click', function() { document.getElementById('auth-tab-login').click(); });
+
+  // ── Login ──
+  document.getElementById('btn-login').addEventListener('click', function() {
+    login(document.getElementById('login-username').value.trim(), document.getElementById('login-password').value);
+  });
+  document.getElementById('login-password').addEventListener('keydown', function(e){ if(e.key==='Enter') document.getElementById('btn-login').click(); });
+
+  // ── Register ──
+  document.getElementById('btn-register').addEventListener('click', function() {
+    register(document.getElementById('reg-username').value.trim(), document.getElementById('reg-password').value, document.getElementById('reg-confirm').value);
+  });
+
+  // ── Nav buttons ──
+  document.querySelectorAll('.nav-btn[data-page]').forEach(function(b) {
+    b.addEventListener('click', function() { showPage(b.dataset.page); });
+  });
+  document.getElementById('nav-logout').addEventListener('click', logout);
+  document.getElementById('nav-settings').addEventListener('click', function() {
+    document.getElementById('api-key-input').value = DB.apiKey;
+    document.getElementById('settings-modal').classList.remove('hidden');
+  });
+
+  // ── Mood detection tabs ──
+  document.getElementById('dtab-manual').addEventListener('click', function() {
+    this.classList.add('active');
+    document.getElementById('dtab-ai').classList.remove('active');
+    document.getElementById('detect-manual').classList.remove('hidden');
+    document.getElementById('detect-ai').classList.add('hidden');
+  });
+  document.getElementById('dtab-ai').addEventListener('click', function() {
+    this.classList.add('active');
+    document.getElementById('dtab-manual').classList.remove('active');
+    document.getElementById('detect-ai').classList.remove('hidden');
+    document.getElementById('detect-manual').classList.add('hidden');
+  });
+
+  // ── Mood cards ──
+  document.querySelectorAll('.mood-card').forEach(function(card) {
+    card.addEventListener('click', function() { selectMood(card.dataset.mood, 'manual'); });
+  });
+
+  // ── AI detect ──
+  document.getElementById('btn-ai-detect').addEventListener('click', detectMoodAI);
+  document.getElementById('btn-ai-confirm').addEventListener('click', function() {
+    if (detectedMood) {
+      const reason = document.getElementById('ai-result-reason').textContent;
+      selectMood(detectedMood, 'ai', reason);
     }
-  }
-
-  area.querySelector('#pz-shuffle').addEventListener('click', function () {
-    shuffle(); render();
-    sc.textContent = 'Moves: 0';
   });
 
-  shuffle();
-  render();
-};
-
-/* ──────────────────────────────────────
-   7. QUICK TAP
-────────────────────────────────────── */
-GAMES.quickTap = function (area) {
-  let score = 0, timeLeft = 10, ivl = null, running = false;
-
-  area.innerHTML = `
-    <div class="g-title">Quick Tap</div>
-    <div class="g-sub">Tap as fast as you can in 10 seconds!</div>
-    <div class="g-score" id="qt-score">Score: 0 · Time: 10s</div>
-    <div id="tap-circle">TAP!</div>
-    <button class="g-btn" id="qt-start">Start</button>`;
-
-  const circle = area.querySelector('#tap-circle');
-  const sc     = area.querySelector('#qt-score');
-  const startB = area.querySelector('#qt-start');
-
-  circle.addEventListener('click', function () {
-    if (!running) return;
-    score++;
-    sc.textContent = 'Score: ' + score + ' · Time: ' + timeLeft + 's';
+  // ── Games back button ──
+  document.getElementById('btn-back-games').addEventListener('click', function() {
+    stopGame();
+    document.getElementById('spotifyPlayer').src = '';
+    showPage('page-mood');
   });
 
-  startB.addEventListener('click', function () {
-    score = 0; timeLeft = 10; running = true;
-    startB.disabled = true;
-    sc.textContent = 'Score: 0 · Time: 10s';
-    ivl = setInterval(function () {
-      timeLeft--;
-      sc.textContent = 'Score: ' + score + ' · Time: ' + timeLeft + 's';
-      if (timeLeft <= 0) {
-        clearInterval(ivl);
-        running = false;
-        sc.textContent = '🎯 Final: ' + score + ' taps!';
-        startB.textContent = 'Play Again';
-        startB.disabled = false;
-      }
-    }, 1000);
+  // ── Game tabs ──
+  document.getElementById('tab1Btn').addEventListener('click', function() { switchTab(1); });
+  document.getElementById('tab2Btn').addEventListener('click', function() { switchTab(2); });
+
+  // ── History filter ──
+  document.getElementById('history-filter').addEventListener('change', renderHistory);
+
+  // ── Leaderboard tabs ──
+  document.getElementById('lb-tab-all').addEventListener('click', function() {
+    lbMode='all'; this.classList.add('active'); document.getElementById('lb-tab-week').classList.remove('active'); renderLeaderboard();
+  });
+  document.getElementById('lb-tab-week').addEventListener('click', function() {
+    lbMode='week'; this.classList.add('active'); document.getElementById('lb-tab-all').classList.remove('active'); renderLeaderboard();
   });
 
-  gameCleanup = function () { clearInterval(ivl); };
-};
-
-/* ──────────────────────────────────────
-   8. RELAX RHYTHM
-────────────────────────────────────── */
-GAMES.relaxRhythm = function (area) {
-  const TOTAL = 8;
-  let clicks = 0, running = false, ivl = null;
-
-  area.innerHTML = `
-    <div class="g-title">Relax Rhythm</div>
-    <div class="g-sub">Click on every glow — follow the pulse</div>
-    <div id="rhythm-ring">Press Begin</div>
-    <div class="rh-dots" id="rh-dots"></div>
-    <div class="g-score" id="rh-score">0 / ` + TOTAL + `</div>
-    <button class="g-btn" id="rh-start">Begin</button>`;
-
-  const ring  = area.querySelector('#rhythm-ring');
-  const dots  = area.querySelector('#rh-dots');
-  const sc    = area.querySelector('#rh-score');
-  const startB= area.querySelector('#rh-start');
-
-  for (let i = 0; i < TOTAL; i++) {
-    const d = document.createElement('div');
-    d.className = 'rh-dot';
-    dots.appendChild(d);
-  }
-
-  function pulse() {
-    ring.classList.add('pulsing');
-    ring.textContent = 'Tap ✨';
-    setTimeout(function () {
-      ring.classList.remove('pulsing');
-      ring.textContent = 'Wait…';
-    }, 650);
-  }
-
-  ring.addEventListener('click', function () {
-    if (!running) return;
-    clicks++;
-    sc.textContent = clicks + ' / ' + TOTAL;
-    const dotList = dots.querySelectorAll('.rh-dot');
-    if (clicks <= TOTAL) { dotList[clicks - 1].classList.add('on'); }
-    if (clicks >= TOTAL) {
-      clearInterval(ivl);
-      running = false;
-      ring.textContent = '🌙 Zen!';
-      sc.textContent = 'Perfect rhythm!';
-      startB.disabled = false;
-      startB.textContent = 'Again';
+  // ── Settings modal ──
+  document.getElementById('modal-close').addEventListener('click', function() { document.getElementById('settings-modal').classList.add('hidden'); });
+  document.getElementById('settings-modal').addEventListener('click', function(e) { if(e.target===this) this.classList.add('hidden'); });
+  document.getElementById('btn-save-key').addEventListener('click', function() {
+    const key = document.getElementById('api-key-input').value.trim();
+    DB.setApiKey(key);
+    toast(key ? 'API key saved ✅' : 'API key cleared', 'success');
+    document.getElementById('settings-modal').classList.add('hidden');
+  });
+  document.getElementById('btn-clear-data').addEventListener('click', function() {
+    if (confirm('Delete all YOUR sessions and scores? This cannot be undone.')) {
+      const user = DB.curUser;
+      DB.setSessions(DB.sessions.filter(s=>s.username!==user));
+      DB.setScores(DB.scores.filter(s=>s.username!==user));
+      toast('Your data cleared', 'info');
+      document.getElementById('settings-modal').classList.add('hidden');
     }
   });
 
-  startB.addEventListener('click', function () {
-    clicks = 0; running = true;
-    dots.querySelectorAll('.rh-dot').forEach(function (d) { d.classList.remove('on'); });
-    sc.textContent = '0 / ' + TOTAL;
-    startB.disabled = true;
-    clearInterval(ivl);
-    ivl = setInterval(pulse, 1800);
-    pulse();
-  });
-
-  gameCleanup = function () { clearInterval(ivl); };
-};
+  // ── Auto-login if session persists ──
+  if (DB.curUser) { onLoggedIn(); }
+});
