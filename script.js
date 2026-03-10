@@ -4,24 +4,10 @@
    ======================================== */
 
 // ============================================================
-//  FIREBASE SETUP
+//  CONFIG  —  replace with your real keys
 // ============================================================
-import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
-import { getDatabase, ref, set, get, remove } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyCq8TnGxdBiQtxi2lIwoe2v1YD8BTKcC_k",
-  authDomain: "mood-play-0410.firebaseapp.com",
-  databaseURL: "https://mood-play-0410-default-rtdb.firebaseio.com",
-  projectId: "mood-play-0410",
-  storageBucket: "mood-play-0410.firebasestorage.app",
-  messagingSenderId: "210625409421",
-  appId: "1:210625409421:web:b71677114806316df50dc4",
-  measurementId: "G-4N5BFYFZB6",
-};
-
-const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
-const db  = getDatabase(app);
+const GEMINI_API_KEY = 'AIzaSyDemo_replace_with_your_key';
+// Get a free Gemini key at: https://aistudio.google.com
 
 // ============================================================
 //  MOOD DATA
@@ -60,11 +46,11 @@ const MOODS = {
 };
 
 // ============================================================
-//  SHARED BACKEND — Firebase Realtime Database
+//  SHARED BACKEND — window.storage (persistent, cross-session)
 // ============================================================
 const Backend = {
   /**
-   * Push a mood event to Firebase so the admin can see it.
+   * Push a mood event to the shared backend so the admin can see it.
    * @param {string} username
    * @param {string|null} mood
    * @param {'start'|'end'} action
@@ -79,37 +65,39 @@ const Backend = {
         device: navigator.userAgent.includes('Mobile') ? 'mobile' : 'desktop',
       };
 
-      // Per-user active mood node (admin reads these)
+      // Per-user active mood (admin reads these)
       if (action === 'start') {
-        await set(ref(db, 'active/' + username), evt);
+        await window.storage.set('active:' + username, JSON.stringify(evt), true);
       } else {
-        try { await remove(ref(db, 'active/' + username)); } catch (_) {}
+        try { await window.storage.delete('active:' + username, true); } catch (_) {}
       }
 
       // Global event feed (admin live feed)
-      const feedRef  = ref(db, 'feed/events');
-      const feedSnap = await get(feedRef);
-      let feed = feedSnap.exists() ? feedSnap.val() : [];
-      if (!Array.isArray(feed)) feed = Object.values(feed);
+      let feed = [];
+      try {
+        const r = await window.storage.get('feed:events', true);
+        feed = r ? JSON.parse(r.value) : [];
+      } catch (_) { feed = []; }
       feed.unshift(evt);
       if (feed.length > 300) feed = feed.slice(0, 300);
-      await set(feedRef, feed);
+      await window.storage.set('feed:events', JSON.stringify(feed), true);
 
       // Users registry (admin user table)
-      const regRef  = ref(db, 'users/reg');
-      const regSnap = await get(regRef);
-      let reg = regSnap.exists() ? regSnap.val() : {};
+      let reg = {};
+      try {
+        const r = await window.storage.get('users:reg', true);
+        reg = r ? JSON.parse(r.value) : {};
+      } catch (_) { reg = {}; }
       if (!reg[username]) reg[username] = { joined: Date.now(), sessions: 0, moods: {} };
       if (action === 'start') {
         reg[username].sessions = (reg[username].sessions || 0) + 1;
-        reg[username].moods    = reg[username].moods || {};
         reg[username].moods[mood] = (reg[username].moods[mood] || 0) + 1;
       }
-      reg[username].lastMood = mood;
-      reg[username].lastSeen = Date.now();
-      reg[username].online   = action === 'start';
-      reg[username].avatar   = username[0].toUpperCase();
-      await set(regRef, reg);
+      reg[username].lastMood  = mood;
+      reg[username].lastSeen  = Date.now();
+      reg[username].online    = action === 'start';
+      reg[username].avatar    = username[0].toUpperCase();
+      await window.storage.set('users:reg', JSON.stringify(reg), true);
 
     } catch (e) {
       console.warn('Backend sync error:', e);
@@ -119,13 +107,14 @@ const Backend = {
   /** Append a completed session entry to the user's shared history */
   async pushHistory(username, entry) {
     try {
-      const histRef  = ref(db, 'hist/' + username);
-      const histSnap = await get(histRef);
-      let hist = histSnap.exists() ? histSnap.val() : [];
-      if (!Array.isArray(hist)) hist = Object.values(hist);
+      let hist = [];
+      try {
+        const r = await window.storage.get('hist:' + username, true);
+        hist = r ? JSON.parse(r.value) : [];
+      } catch (_) { hist = []; }
       hist.unshift(entry);
       if (hist.length > 60) hist = hist.slice(0, 60);
-      await set(histRef, hist);
+      await window.storage.set('hist:' + username, JSON.stringify(hist), true);
     } catch (e) {
       console.warn('History push error:', e);
     }
@@ -187,7 +176,7 @@ function doAuth() {
   const users = LS.get('users') || {};
 
   if (switchAuthTab._tab === 'signup') {
-    if (users[u])     { err.textContent = 'Username already taken.'; return; }
+    if (users[u])   { err.textContent = 'Username already taken.'; return; }
     if (p.length < 4) { err.textContent = 'Password must be ≥ 4 characters.'; return; }
     users[u] = { password: p, email: e, joined: Date.now(), avatar: u[0].toUpperCase() };
     LS.set('users', users);
@@ -283,7 +272,7 @@ function selectMood(mood) {
   document.body.className = 'mood-' + mood;
 
   const badge = document.getElementById('activeMoodBadge');
-  badge.textContent       = data.emoji + ' ' + data.label;
+  badge.textContent    = data.emoji + ' ' + data.label;
   badge.style.borderColor = data.color;
   badge.style.color       = data.color;
 
@@ -328,7 +317,7 @@ function saveMoodSession() {
   if (hist.length > 100) hist.shift();
   LS.set(key, hist);
 
-  // Push to shared Firebase backend
+  // Push to shared backend
   Backend.pushHistory(currentUser, entry);
   Backend.push(currentUser, currentMood, 'end');
 
@@ -364,9 +353,6 @@ window.addEventListener('beforeunload', () => {
 // ============================================================
 //  GEMINI AI MOOD DETECTION
 // ============================================================
-const GEMINI_API_KEY = 'AIzaSyDemo_replace_with_your_key';
-// Get a free Gemini key at: https://aistudio.google.com
-
 function toggleAiInput() {
   aiInputVisible = !aiInputVisible;
   document.getElementById('aiInputBox').classList.toggle('visible', aiInputVisible);
@@ -870,8 +856,8 @@ GAMES.quickTap = function (vp) {
   target.addEventListener('click', () => {
     if (!running) return;
     score++;
-    scoreEl.textContent    = `Score: ${score} | Time: ${timeLeft}s`;
-    target.style.transform = 'scale(0.92)';
+    scoreEl.textContent     = `Score: ${score} | Time: ${timeLeft}s`;
+    target.style.transform  = 'scale(0.92)';
     setTimeout(() => target.style.transform = '', 80);
   });
 
@@ -951,20 +937,3 @@ GAMES.relaxRhythm = function (vp) {
 
   gameCleanup._fn = () => clearInterval(interval);
 };
-
-// ============================================================
-//  EXPOSE FUNCTIONS TO GLOBAL SCOPE (required for HTML onclick)
-// ============================================================
-Object.assign(window, {
-  switchAuthTab,
-  doAuth,
-  demoLogin,
-  logout,
-  navTo,
-  goToMoodSelection,
-  selectMood,
-  switchTab,
-  toggleAiInput,
-  detectMoodWithGemini,
-  renderLeaderboard,
-});
