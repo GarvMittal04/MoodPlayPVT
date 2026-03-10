@@ -13,15 +13,12 @@
 <div class="admin-auth" id="adminAuth">
   <div class="admin-auth-card">
     <div style="font-size:2.5rem">🛡️</div>
-    <div>
-      <h2>Admin Access</h2>
-      <p>MoodPlay Real-Time Dashboard</p>
-    </div>
-    <input type="text" id="adminUser" placeholder="Admin username" value="admin"/>
+    <div><h2>Admin Access</h2><p>MoodPlay Real-Time Dashboard</p></div>
+    <input type="text"     id="adminUser" placeholder="Admin username" value="admin"/>
     <input type="password" id="adminPass" placeholder="Admin password"/>
     <div class="admin-err" id="adminErr"></div>
     <button class="admin-btn" onclick="adminLogin()">Enter Dashboard</button>
-    <div style="font-size:.75rem;color:var(--muted)">Default: admin / admin@GM</div>
+    <div style="font-size:.75rem;color:var(--muted)">Default: admin / admin123</div>
   </div>
 </div>
 
@@ -33,7 +30,7 @@
     <div class="header-sub">Real-Time Mood Intelligence Dashboard</div>
   </div>
   <div class="live-pill"><div class="live-dot"></div>LIVE</div>
-  <span class="last-refresh" id="lastRefresh">Not loaded yet</span>
+  <span class="last-refresh" id="lastRefresh">Connecting to Firebase…</span>
   <button class="refresh-btn" onclick="loadData()">⟳ Refresh Now</button>
 </div>
 
@@ -73,7 +70,7 @@
       <div class="mood-dist" id="moodDist"></div>
     </div>
 
-    <!-- ACTIVITY TIMELINE (Canvas Chart) -->
+    <!-- ACTIVITY TIMELINE -->
     <div class="panel">
       <div class="panel-title">📈 Session Activity — Last 20 Events</div>
       <div class="timeline-wrap"><canvas id="timelineCanvas"></canvas></div>
@@ -85,13 +82,7 @@
       <div style="overflow-x:auto">
         <table class="user-table">
           <thead>
-            <tr>
-              <th>User</th>
-              <th>Status</th>
-              <th>Current Mood</th>
-              <th>Sessions</th>
-              <th>Last Seen</th>
-            </tr>
+            <tr><th>User</th><th>Status</th><th>Current Mood</th><th>Sessions</th><th>Last Seen</th></tr>
           </thead>
           <tbody id="usersBody"></tbody>
         </table>
@@ -108,28 +99,36 @@
 
   <!-- RIGHT COLUMN -->
   <div class="right-col">
-
-    <!-- ONLINE NOW -->
     <div>
       <div class="panel-title">🟢 Online Now &nbsp;<span id="online-count">0</span></div>
-      <div class="online-list" id="onlineList">
-        <div class="empty">No users online right now</div>
-      </div>
+      <div class="online-list" id="onlineList"><div class="empty">No users online right now</div></div>
     </div>
-
-    <!-- LIVE FEED -->
     <div>
       <div class="panel-title">⚡ Live Mood Feed &nbsp;<span id="feed-count"></span></div>
-      <div class="feed-list" id="feedList">
-        <div class="empty">Waiting for activity…</div>
-      </div>
+      <div class="feed-list" id="feedList"><div class="empty">Waiting for activity…</div></div>
     </div>
-
   </div><!-- /right-col -->
 
 </div><!-- /main -->
 
-<!-- ✅ type="module" is required because admin.js uses Firebase ES module imports -->
-<script type="module" src="admin.js"></script>
+<!-- ══════════════════════════════════════════════
+     FIREBASE  — compat SDK (global firebase object)
+     ══════════════════════════════════════════════ -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script>
+  firebase.initializeApp({
+    apiKey:            "AIzaSyCq8TnGxdBiQtxi2lIwoe2v1YD8BTKcC_k",
+    authDomain:        "mood-play-0410.firebaseapp.com",
+    databaseURL:       "https://mood-play-0410-default-rtdb.firebaseio.com",
+    projectId:         "mood-play-0410",
+    storageBucket:     "mood-play-0410.firebasestorage.app",
+    messagingSenderId: "210625409421",
+    appId:             "1:210625409421:web:b71677114806316df50dc4",
+    measurementId:     "G-4N5BFYFZB6"
+  });
+</script>
+
+<script src="admin.js"></script>
 </body>
 </html>
