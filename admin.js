@@ -4,6 +4,26 @@
    ======================================== */
 
 // ============================================================
+//  FIREBASE SETUP
+// ============================================================
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
+import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCq8TnGxdBiQtxi2lIwoe2v1YD8BTKcC_k",
+  authDomain: "mood-play-0410.firebaseapp.com",
+  databaseURL: "https://mood-play-0410-default-rtdb.firebaseio.com",
+  projectId: "mood-play-0410",
+  storageBucket: "mood-play-0410.firebasestorage.app",
+  messagingSenderId: "210625409421",
+  appId: "1:210625409421:web:b71677114806316df50dc4",
+  measurementId: "G-4N5BFYFZB6",
+};
+
+const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+const db  = getDatabase(app);
+
+// ============================================================
 //  CONFIG  —  change these credentials!
 // ============================================================
 const ADMIN_CREDS = {
@@ -15,11 +35,11 @@ const ADMIN_CREDS = {
 //  CONSTANTS
 // ============================================================
 const MOOD_META = {
-  happy:   { emoji: '😄', color: '#f7c948' },
-  sad:     { emoji: '😢', color: '#64b5f6' },
-  stressed:{ emoji: '😰', color: '#81c784' },
-  bored:   { emoji: '😑', color: '#ff8a65' },
-  tired:   { emoji: '😴', color: '#ce93d8' },
+  happy:    { emoji: '😄', color: '#f7c948' },
+  sad:      { emoji: '😢', color: '#64b5f6' },
+  stressed: { emoji: '😰', color: '#81c784' },
+  bored:    { emoji: '😑', color: '#ff8a65' },
+  tired:    { emoji: '😴', color: '#ce93d8' },
 };
 
 const PALETTE = [
@@ -67,28 +87,19 @@ function startAutoRefresh() {
 // ============================================================
 async function loadData() {
   try {
-    // Load all shared backend data in parallel
-    const [regRes, feedRes, activeKeysRes] = await Promise.all([
-      safeGet('users:reg',   true),
-      safeGet('feed:events', true),
-      window.storage.list('active:', true).catch(() => ({ keys: [] })),
+    // Load all Firebase data in parallel
+    const [regSnap, feedSnap, activeSnap] = await Promise.all([
+      safeGet('users/reg'),
+      safeGet('feed/events'),
+      safeGet('active'),
     ]);
 
-    const reg        = regRes  ? JSON.parse(regRes.value)  : {};
-    const feed       = feedRes ? JSON.parse(feedRes.value) : [];
-    const activeKeys = activeKeysRes?.keys || [];
+    const reg  = regSnap?.exists()    ? regSnap.val()    : {};
+    const feedRaw = feedSnap?.exists() ? feedSnap.val()   : [];
+    const feed = Array.isArray(feedRaw) ? feedRaw : Object.values(feedRaw);
 
-    // Fetch each online user's active mood event
-    const activeUsers = {};
-    for (const key of activeKeys) {
-      try {
-        const r = await window.storage.get(key, true);
-        if (r) {
-          const data = JSON.parse(r.value);
-          activeUsers[data.user] = data;
-        }
-      } catch (_) {}
-    }
+    // activeSnap contains an object keyed by username → event data
+    const activeUsers = activeSnap?.exists() ? activeSnap.val() : {};
 
     // Render all dashboard sections
     renderStats(reg, feed, activeUsers);
@@ -108,18 +119,18 @@ async function loadData() {
   }
 }
 
-/** Safe wrapper for window.storage.get — returns null instead of throwing */
-async function safeGet(key, shared) {
-  try { return await window.storage.get(key, shared); } catch (_) { return null; }
+/** Safe wrapper for Firebase get — returns null instead of throwing */
+async function safeGet(path) {
+  try { return await get(ref(db, path)); } catch (_) { return null; }
 }
 
 // ============================================================
 //  STAT CARDS
 // ============================================================
 function renderStats(reg, feed, activeUsers) {
-  const onlineCount  = Object.keys(activeUsers).length;
-  const totalUsers   = Object.keys(reg).length;
-  const totalSessions= Object.values(reg).reduce((a, u) => a + (u.sessions || 0), 0);
+  const onlineCount   = Object.keys(activeUsers).length;
+  const totalUsers    = Object.keys(reg).length;
+  const totalSessions = Object.values(reg).reduce((a, u) => a + (u.sessions || 0), 0);
 
   // Top mood today
   const today      = new Date().toDateString();
@@ -352,9 +363,9 @@ function renderFeed(feed) {
 //  SMART ALERTS
 // ============================================================
 function renderAlerts(feed, reg, activeUsers) {
-  const alerts   = [];
-  const today    = new Date().toDateString();
-  const todayFeed= feed.filter(e => new Date(e.ts).toDateString() === today && e.action === 'start');
+  const alerts    = [];
+  const today     = new Date().toDateString();
+  const todayFeed = feed.filter(e => new Date(e.ts).toDateString() === today && e.action === 'start');
 
   // Users currently stressed
   const stressedNow = Object.entries(activeUsers).filter(([, d]) => d.mood === 'stressed');
@@ -418,3 +429,8 @@ function timeAgo(ts) {
   if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
   return new Date(ts).toLocaleDateString();
 }
+
+// ============================================================
+//  EXPOSE TO GLOBAL SCOPE (for HTML onclick attributes)
+// ============================================================
+window.adminLogin = adminLogin;
