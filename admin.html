@@ -21,7 +21,7 @@
     <input type="password" id="adminPass" placeholder="Admin password"/>
     <div class="admin-err" id="adminErr"></div>
     <button class="admin-btn" onclick="adminLogin()">Enter Dashboard</button>
-    <div style="font-size:.75rem;color:var(--muted)">Default: admin / admin123</div>
+    <div style="font-size:.75rem;color:var(--muted)">Default: admin / admin@GM</div>
   </div>
 </div>
 
@@ -129,6 +129,7 @@
 
 </div><!-- /main -->
 
-<script src="admin.js"></script>
+<!-- ✅ type="module" is required because admin.js uses Firebase ES module imports -->
+<script type="module" src="admin.js"></script>
 </body>
 </html>
