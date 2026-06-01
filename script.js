@@ -40,7 +40,7 @@ const Backend = {
       } else {
         await db.ref(`active/${username}`).remove().catch(() => {});
       }
-
+ 
       // Append to global feed (admin live feed — capped at 300 by Cloud/admin)
       await db.ref('feed').push(evt);
 
