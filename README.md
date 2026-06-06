@@ -3,7 +3,7 @@
 A mood-based game & music platform with **real-time admin dashboard**, **Gemini AI mood detection**, **analytics**, and **leaderboard**.
 
 ---
-
+ 
 ## 📁 Project Structure
 
 ```
