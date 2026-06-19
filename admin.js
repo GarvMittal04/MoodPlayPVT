@@ -8,7 +8,7 @@ const ADMIN_CREDS = {
   admin: 'admin123',
 };
 
-// ── Firebase DB reference (initialised in admin.html) ──
+// ── Firebase DB reference (initialised in admin.html) ── 
 const db = firebase.database();
 
 // ── Mood meta ──
