@@ -6,7 +6,7 @@
 /* ---- RESET & VARIABLES ---- */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-:root {
+:root { 
   --bg:        #0b0e1a; 
   --glass:     rgba(255, 255, 255, 0.06);
   --glass-b:   rgba(255, 255, 255, 0.12);
