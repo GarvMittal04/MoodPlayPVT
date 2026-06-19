@@ -6,7 +6,7 @@
 // ── Gemini API key (replace with yours from aistudio.google.com) ──
 const GEMINI_API_KEY = 'AIzaSyDemo_replace_with_your_key';
 
-// ── Firebase DB reference (firebase initialised in index.html) ──
+// ── Firebase DB reference (firebase initialised in index.html) ── 
 const db = firebase.database();
 
 // ============================================================
